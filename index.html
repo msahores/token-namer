@@ -1,0 +1,826 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Token Namer</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --ink: #1b1f27;
+    --muted: #6a7282;
+    --line: #e1e4ea;
+    --line-strong: #c9ced8;
+    --accent: #2455a4;
+    --accent-ink: #ffffff;
+    --accent-soft: #e8eef9;
+    --danger: #a12d3e;
+    --danger-soft: #fbe9ec;
+
+    /* Colores suaves por slot (fondo / texto). Se usan en el preview y la leyenda. */
+    --slot-category-bg: #dce7f8; --slot-category-ink: #1c3f7a;
+    --slot-role-bg:     #d9efe1; --slot-role-ink:     #1c5a38;
+    --slot-variant-bg:  #e8e1f7; --slot-variant-ink:  #4a2f86;
+    --slot-state-bg:    #fbebcf; --slot-state-ink:    #7a4e0a;
+    --slot-scale-bg:    #f9dee3; --slot-scale-ink:    #8a2a3f;
+    --slot-other-bg:    #e6e8ec; --slot-other-ink:    #3a3f4b;
+
+    --sans: -apple-system, "Segoe UI", Roboto, Ubuntu, "Noto Sans", "Liberation Sans", "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --radius: 6px;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.5;
+    padding-inline: 20px;
+    padding-block: 0 88px; /* espacio para el pie fijo */
+  }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  button:focus-visible, input:focus-visible, a:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  code, .mono { font-family: var(--mono); }
+
+  .page { max-width: 980px; margin: 0 auto; }
+
+  /* ---------- Cabecera ---------- */
+  .header {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    padding-block: 22px 14px;
+  }
+  .header h1 { font-size: 20px; margin: 0; letter-spacing: -0.01em; }
+  .header p { margin: 0; color: var(--muted); font-size: 14px; }
+
+  /* ---------- Preview ---------- */
+  .preview {
+    position: sticky; top: 0; z-index: 5;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    display: grid; gap: 10px;
+    box-shadow: 0 1px 0 rgba(27,31,39,0.04);
+  }
+  .preview-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .preview-name {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 2px;
+    font-family: var(--mono); font-size: 20px; min-height: 34px;
+  }
+  .preview-name .empty { color: var(--muted); font-family: var(--sans); font-size: 15px; }
+  .seg {
+    padding: 3px 8px; border-radius: 4px; line-height: 1.3;
+    background: var(--slot-other-bg); color: var(--slot-other-ink);
+  }
+  .seg.pending { background: transparent; color: var(--muted); border: 1px dashed var(--line-strong); }
+  .sep { color: var(--muted); padding-inline: 1px; }
+  .legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+
+  /* ---------- Asistente ---------- */
+  .wizard { margin-top: 18px; display: grid; gap: 18px; }
+  .field label { display: block; font-weight: 600; margin-bottom: 6px; }
+  .field .hint { color: var(--muted); font-size: 13px; margin: 0 0 8px; }
+  .field input[type="text"] {
+    width: 100%; font: inherit; padding: 10px 12px;
+    border: 1px solid var(--line-strong); border-radius: var(--radius);
+    background: var(--surface); color: var(--ink);
+  }
+
+  .crumbs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .crumb {
+    border: 1px solid var(--line); background: var(--surface); border-radius: 999px;
+    padding: 4px 10px; font-size: 13px; display: inline-flex; gap: 6px; align-items: center;
+  }
+  .crumb .slot { color: var(--muted); }
+  .crumb .val { font-family: var(--mono); }
+  .crumb .val.skipped { color: var(--muted); font-style: italic; font-family: var(--sans); }
+  .crumb.current { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .crumb.done:hover { border-color: var(--line-strong); }
+  .crumb-arrow { color: var(--line-strong); font-size: 12px; }
+
+  .step { display: grid; gap: 10px; }
+  .step-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .step-head h2 { margin: 0; font-size: 16px; }
+  .step-head h2 code { background: var(--slot-other-bg); padding: 1px 6px; border-radius: 4px; font-size: 14px; }
+  .step-head .tag { font-size: 12px; color: var(--muted); }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+  .card {
+    text-align: left; background: var(--surface);
+    border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; display: grid; gap: 4px;
+    transition: border-color 120ms, box-shadow 120ms;
+  }
+  .card:hover { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .card .value { font-family: var(--mono); font-size: 15px; }
+  .card .desc { color: var(--muted); font-size: 13px; line-height: 1.35; }
+
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .btn {
+    border: 1px solid var(--line-strong); background: var(--surface);
+    border-radius: var(--radius); padding: 8px 14px; font-size: 14px;
+  }
+  .btn:hover { border-color: var(--ink); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .btn.primary:hover { filter: brightness(0.94); }
+  .btn.quiet { border-color: transparent; background: transparent; color: var(--muted); }
+  .btn.quiet:hover { color: var(--ink); border-color: transparent; background: var(--slot-other-bg); }
+  .btn.danger { color: var(--danger); border-color: var(--danger); background: var(--surface); }
+  .btn.danger:hover { background: var(--danger-soft); }
+  .btn.small { padding: 4px 10px; font-size: 13px; }
+  .btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+
+  .done-box {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 16px 18px; display: grid; gap: 10px;
+  }
+  .done-box p { margin: 0; color: var(--muted); }
+
+  /* ---------- Lista ---------- */
+  .list { margin-top: 36px; display: grid; gap: 12px; }
+  .list-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .list-head h2 { margin: 0; font-size: 16px; }
+  .list-head .count { color: var(--muted); font-weight: 400; }
+  .table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; }
+  tr:last-child td { border-bottom: 0; }
+  td.name { font-family: var(--mono); white-space: nowrap; }
+  td.decision { min-width: 220px; }
+  td.decision .none { color: var(--muted); font-style: italic; }
+  td.date { color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  td.row-actions { white-space: nowrap; text-align: right; }
+  td.row-actions .btn + .btn { margin-left: 4px; }
+  .empty-list { padding: 22px; color: var(--muted); text-align: center; }
+  .confirm { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; color: var(--danger); }
+
+  /* ---------- Pie fijo ---------- */
+  .footer {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 6;
+    background: var(--surface); border-top: 1px solid var(--line);
+    padding: 10px 20px; font-size: 13px; color: var(--muted); text-align: center;
+  }
+
+  /* ---------- Toast ---------- */
+  .toast {
+    position: fixed; right: 20px; bottom: 64px; z-index: 7;
+    background: var(--ink); color: #fff; padding: 8px 14px; border-radius: var(--radius);
+    font-size: 13px; opacity: 0; transform: translateY(4px);
+    transition: opacity 150ms, transform 150ms; pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .card, .toast { transition: none; }
+  }
+  @media (max-width: 640px) {
+    .preview-name { font-size: 16px; }
+    td.row-actions { text-align: left; }
+  }
+</style>
+</head>
+<body>
+
+<script>
+/* =====================================================================
+ * CONFIG: la gramática de los nombres de tokens.
+ *
+ * Esta es LA fuente de verdad del asistente. Todo lo que se ve en pantalla
+ * (categorías, pasos, opciones, colores del preview) sale de acá.
+ * Para agregar una opción alcanza con sumar un objeto { value, description }
+ * a la lista correspondiente. No hay que tocar nada más.
+ *
+ * Estructura:
+ *
+ *   CONFIG.slots       -> nombre de cada slot y su color en el preview.
+ *                         Si un paso usa un slot que no está acá, se muestra
+ *                         igual con un color gris genérico.
+ *
+ *   CONFIG.categories  -> lista ordenada de categorías. Cada una tiene:
+ *       value        el segmento literal que va en el nombre (kebab-case)
+ *       description  una línea que se ve en la card
+ *       steps        secuencia ORDENADA de pasos después de la categoría
+ *
+ *   Cada paso (step) tiene:
+ *       slot         nombre del slot (role, variant, state, scale...)
+ *       optional     true = se puede saltar; saltarlo omite el segmento
+ *       skipHint     (opcional) texto corto que explica qué significa saltar
+ *       options      lista de { value, description }
+ *
+ * Regla de ensamblado: category + valores elegidos en orden, unidos con
+ * guion medio. Los slots saltados no aparecen. Los valores se escriben
+ * literal (text_on conserva su guion bajo interno).
+ *
+ * Decisión de gramática: saltar un slot opcional no bloquea los siguientes.
+ * Ejemplo válido: color + background + (saltar variant) + hovered
+ *   => color-background-hovered
+ * ===================================================================== */
+const CONFIG = {
+  slots: {
+    category: { label: 'category', bg: 'var(--slot-category-bg)', ink: 'var(--slot-category-ink)' },
+    role:     { label: 'role',     bg: 'var(--slot-role-bg)',     ink: 'var(--slot-role-ink)' },
+    variant:  { label: 'variant',  bg: 'var(--slot-variant-bg)',  ink: 'var(--slot-variant-ink)' },
+    state:    { label: 'state',    bg: 'var(--slot-state-bg)',    ink: 'var(--slot-state-ink)' },
+    scale:    { label: 'scale',    bg: 'var(--slot-scale-bg)',    ink: 'var(--slot-scale-ink)' },
+  },
+
+  categories: [
+    {
+      value: 'color',
+      description: 'colores de texto, fondos, bordes e iconos',
+      steps: [
+        {
+          slot: 'role',
+          optional: false,
+          options: [
+            { value: 'text',       description: 'pinta letras' },
+            { value: 'text_on',    description: 'letras sobre una superficie de color, ej text_on-danger' },
+            { value: 'background', description: 'fondos y superficies' },
+            { value: 'border',     description: 'bordes y divisores' },
+            { value: 'icon',       description: 'iconos' },
+          ],
+        },
+        {
+          slot: 'variant',
+          optional: true,
+          skipHint: 'sin variant equivale a default',
+          options: [
+            { value: 'default', description: 'el neutro de la familia' },
+            { value: 'subtle',  description: 'versión apagada o secundaria' },
+            { value: 'accent',  description: 'color de marca, acción principal' },
+            { value: 'danger',  description: 'acción destructiva' },
+            { value: 'success', description: 'feedback positivo' },
+            { value: 'warning', description: 'feedback de precaución' },
+            { value: 'error',   description: 'feedback de error en datos' },
+            { value: 'info',    description: 'feedback informativo' },
+            { value: 'neutral', description: 'feedback sin carga, ej estado borrador' },
+            { value: 'inverse', description: 'sobre superficie oscura fija, en cualquier tema' },
+          ],
+        },
+        {
+          slot: 'state',
+          optional: true,
+          skipHint: 'sin state es el estado de reposo',
+          options: [
+            { value: 'hovered',  description: 'el puntero está encima' },
+            { value: 'pressed',  description: 'mientras se mantiene presionado' },
+            { value: 'focused',  description: 'tiene el foco del teclado' },
+            { value: 'disabled', description: 'no admite interacción' },
+            { value: 'selected', description: 'elegido dentro de un grupo' },
+          ],
+        },
+      ],
+    },
+
+    {
+      value: 'space',
+      description: 'distancias dentro y entre elementos',
+      steps: [
+        {
+          slot: 'role',
+          optional: false,
+          options: [
+            { value: 'inset',  description: 'padding interno de un contenedor' },
+            { value: 'stack',  description: 'separación vertical entre apilados' },
+            { value: 'inline', description: 'separación horizontal en una fila; sigue el eje del texto' },
+          ],
+        },
+        {
+          slot: 'scale',
+          optional: false,
+          options: [
+            { value: '1-x', description: '1 vez la base de 4px' },
+            { value: '2-x', description: '2 veces la base de 4px' },
+            { value: '3-x', description: '3 veces la base de 4px' },
+            { value: '4-x', description: '4 veces la base de 4px' },
+          ],
+        },
+      ],
+    },
+
+    {
+      value: 'typography',
+      description: 'tokens compuestos de estilo de texto',
+      steps: [
+        {
+          slot: 'role',
+          optional: false,
+          options: [
+            { value: 'heading', description: 'títulos y encabezados' },
+            { value: 'body',    description: 'texto corrido' },
+            { value: 'label',   description: 'etiquetas de controles y campos' },
+            { value: 'caption', description: 'texto auxiliar pequeño' },
+          ],
+        },
+        {
+          slot: 'scale',
+          optional: false,
+          options: [
+            { value: 'small',  description: 'tamaño chico dentro del rol' },
+            { value: 'medium', description: 'tamaño base dentro del rol' },
+            { value: 'large',  description: 'tamaño grande dentro del rol' },
+          ],
+        },
+      ],
+    },
+
+    {
+      value: 'size',
+      description: 'dimensiones de elementos (alto, ancho, iconos)',
+      steps: [
+        {
+          slot: 'scale',
+          optional: false,
+          options: [
+            { value: 'xs', description: 'extra chico' },
+            { value: 's',  description: 'chico' },
+            { value: 'm',  description: 'medio' },
+            { value: 'l',  description: 'grande' },
+            { value: 'xl', description: 'extra grande' },
+          ],
+        },
+      ],
+    },
+
+    {
+      value: 'shape',
+      description: 'forma de los elementos, hoy solo radios de esquina',
+      steps: [
+        {
+          slot: 'role',
+          optional: false,
+          options: [
+            { value: 'corner', description: 'radio de las esquinas' },
+          ],
+        },
+        {
+          slot: 'scale',
+          optional: false,
+          options: [
+            { value: 's',    description: 'radio chico' },
+            { value: 'm',    description: 'radio medio' },
+            { value: 'l',    description: 'radio grande' },
+            { value: 'pill', description: 'pill queda fuera de la escala numérica a propósito' },
+          ],
+        },
+      ],
+    },
+
+    {
+      value: 'elevation',
+      description: 'niveles de profundidad (sombras)',
+      steps: [
+        {
+          slot: 'scale',
+          optional: false,
+          options: [
+            { value: '0', description: 'al ras, sin sombra' },
+            { value: '1', description: 'apenas despegado de la superficie' },
+            { value: '2', description: 'flotante, ej menús y popovers' },
+            { value: '3', description: 'máxima profundidad, ej modales' },
+          ],
+        },
+      ],
+    },
+
+    {
+      value: 'breakpoint',
+      description: 'anchos de pantalla donde cambia el layout',
+      steps: [
+        {
+          slot: 'scale',
+          optional: false,
+          options: [
+            { value: 's',  description: 'pantallas chicas' },
+            { value: 'm',  description: 'pantallas medianas' },
+            { value: 'l',  description: 'pantallas grandes' },
+            { value: 'xl', description: 'pantallas extra grandes' },
+          ],
+        },
+      ],
+    },
+  ],
+};
+</script>
+
+<div class="page">
+  <header class="header">
+    <h1>Token Namer</h1>
+    <p>Armá el nombre de un token semántico eligiendo un valor por slot.</p>
+  </header>
+
+  <section class="preview" aria-live="polite" aria-label="Nombre en construcción">
+    <div class="preview-row">
+      <div class="preview-name" id="preview-name"></div>
+      <div class="actions">
+        <button class="btn small" id="copy-preview" type="button" hidden>Copiar</button>
+        <button class="btn small quiet" id="restart-top" type="button">Empezar de nuevo</button>
+      </div>
+    </div>
+    <div class="legend" id="legend"></div>
+  </section>
+
+  <main class="wizard">
+    <div class="field">
+      <label for="decision">Qué decisión estás nombrando?</label>
+      <p class="hint">Opcional. Ejemplo: el fondo de los botones destructivos. La app existe para nombrar decisiones, no para generar nombres.</p>
+      <input type="text" id="decision" placeholder="Describí la decisión en una línea" autocomplete="off">
+    </div>
+
+    <nav class="crumbs" id="crumbs" aria-label="Pasos"></nav>
+
+    <section class="step" id="step"></section>
+  </main>
+
+  <section class="list">
+    <div class="list-head">
+      <h2>Lista acumulada <span class="count" id="list-count"></span></h2>
+      <div class="actions" id="list-actions">
+        <button class="btn small" id="export-md" type="button">Exportar Markdown</button>
+        <button class="btn small" id="export-json" type="button">Exportar JSON</button>
+        <span id="clear-zone"></span>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table id="list-table">
+        <thead>
+          <tr>
+            <th scope="col">Nombre</th>
+            <th scope="col">Decisión que nombra</th>
+            <th scope="col">Fecha</th>
+            <th scope="col">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="list-body"></tbody>
+      </table>
+      <div class="empty-list" id="list-empty">Todavía no hay tokens en la lista.</div>
+    </div>
+  </section>
+</div>
+
+<footer class="footer">Las listas de este armador son una propuesta de trabajo en revisión. Si un token real no se puede armar acá, anotalo: o falta una opción o el token está mal.</footer>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------------- Estado del asistente ---------------- */
+  // choices: un elemento por paso completado, { slot, value } (value null = saltado)
+  const wizard = { category: null, choices: [] };
+
+  const STORAGE_KEY = 'token-namer.list.v1';
+  let list = loadList();
+
+  /* ---------------- Helpers ---------------- */
+  const $ = (sel) => document.querySelector(sel);
+
+  function el(tag, attrs, children) {
+    const node = document.createElement(tag);
+    if (attrs) {
+      for (const [k, v] of Object.entries(attrs)) {
+        if (k === 'class') node.className = v;
+        else if (k === 'text') node.textContent = v;
+        else if (k === 'html') node.innerHTML = v;
+        else if (k.startsWith('on')) node.addEventListener(k.slice(2), v);
+        else if (v === true) node.setAttribute(k, '');
+        else if (v !== false && v != null) node.setAttribute(k, v);
+      }
+    }
+    if (children) for (const c of [].concat(children)) if (c != null) node.append(c);
+    return node;
+  }
+
+  function slotStyle(slot) {
+    const s = CONFIG.slots[slot];
+    return s ? `background:${s.bg};color:${s.ink}` : 'background:var(--slot-other-bg);color:var(--slot-other-ink)';
+  }
+
+  function categoryConfig() {
+    return CONFIG.categories.find((c) => c.value === wizard.category) || null;
+  }
+  function steps() {
+    const cat = categoryConfig();
+    return cat ? cat.steps : [];
+  }
+  function currentStep() {
+    return steps()[wizard.choices.length] || null;
+  }
+  function isComplete() {
+    return !!wizard.category && wizard.choices.length === steps().length;
+  }
+
+  // Ensamblado: category + valores elegidos (los saltados no aparecen), unidos con guion medio.
+  function assembledSegments() {
+    const segs = [];
+    if (wizard.category) segs.push({ slot: 'category', value: wizard.category });
+    for (const c of wizard.choices) if (c.value != null) segs.push({ slot: c.slot, value: c.value });
+    return segs;
+  }
+  function assembledName() {
+    return assembledSegments().map((s) => s.value).join('-');
+  }
+
+  /* ---------------- Persistencia ---------------- */
+  function loadList() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  }
+  function saveList() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    } catch (e) {
+      /* sin localStorage la lista vive solo en memoria */
+    }
+  }
+
+  /* ---------------- Portapapeles ---------------- */
+  async function copyText(text, label) {
+    let ok = false;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        ok = true;
+      }
+    } catch (e) { /* cae al fallback */ }
+    if (!ok) {
+      const ta = el('textarea', { style: 'position:fixed;opacity:0;top:0;left:0' });
+      ta.value = text;
+      document.body.append(ta);
+      ta.select();
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      ta.remove();
+    }
+    toast(ok ? (label || 'Copiado al portapapeles') : 'No se pudo copiar');
+  }
+
+  let toastTimer = null;
+  function toast(msg) {
+    const t = $('#toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+  }
+
+  /* ---------------- Render: preview y leyenda ---------------- */
+  function renderPreview() {
+    const box = $('#preview-name');
+    box.replaceChildren();
+    const segs = assembledSegments();
+
+    if (!segs.length) {
+      box.append(el('span', { class: 'empty', text: 'Elegí una categoría para empezar.' }));
+    } else {
+      segs.forEach((s, i) => {
+        if (i > 0) box.append(el('span', { class: 'sep', text: '-' }));
+        box.append(el('span', { class: 'seg', style: slotStyle(s.slot), text: s.value, title: s.slot }));
+      });
+      // Slot pendiente, como pista de lo que viene.
+      const step = currentStep();
+      if (step) {
+        box.append(el('span', { class: 'sep', text: '-' }));
+        box.append(el('span', { class: 'seg pending', text: step.slot + (step.optional ? '?' : '') }));
+      }
+    }
+    $('#copy-preview').hidden = !segs.length;
+  }
+
+  function renderLegend() {
+    const legend = $('#legend');
+    legend.replaceChildren();
+    for (const [key, s] of Object.entries(CONFIG.slots)) {
+      legend.append(el('span', {}, [el('i', { style: `background:${s.bg};border:1px solid ${s.ink}33` }), s.label]));
+    }
+  }
+
+  /* ---------------- Render: migas de pan ---------------- */
+  function renderCrumbs() {
+    const nav = $('#crumbs');
+    nav.replaceChildren();
+    if (!wizard.category) return;
+
+    const crumbs = [{ slot: 'category', value: wizard.category, index: -1 }];
+    wizard.choices.forEach((c, i) => crumbs.push({ slot: c.slot, value: c.value, index: i }));
+
+    crumbs.forEach((c, i) => {
+      if (i > 0) nav.append(el('span', { class: 'crumb-arrow', text: '›' }));
+      const val = c.value == null
+        ? el('span', { class: 'val skipped', text: 'saltado' })
+        : el('span', { class: 'val', text: c.value });
+      nav.append(el('button', {
+        type: 'button', class: 'crumb done', title: 'Volver a este paso',
+        onclick: () => goBackTo(c.index),
+      }, [el('span', { class: 'slot', text: c.slot }), val]));
+    });
+
+    const step = currentStep();
+    if (step) {
+      nav.append(el('span', { class: 'crumb-arrow', text: '›' }));
+      nav.append(el('span', { class: 'crumb current' }, [el('span', { class: 'slot', text: step.slot })]));
+    }
+  }
+
+  /* ---------------- Render: paso actual ---------------- */
+  function renderStep() {
+    const box = $('#step');
+    box.replaceChildren();
+
+    if (!wizard.category) {
+      box.append(stepHeader('category', false, 'Elegí de qué familia es el token.'));
+      box.append(cardGrid(CONFIG.categories.map((c) => ({ value: c.value, description: c.description })), (v) => {
+        wizard.category = v;
+        wizard.choices = [];
+        render();
+      }));
+      return;
+    }
+
+    const step = currentStep();
+    if (step) {
+      box.append(stepHeader(step.slot, step.optional, null));
+      box.append(cardGrid(step.options, (v) => {
+        wizard.choices.push({ slot: step.slot, value: v });
+        render();
+      }));
+      if (step.optional) {
+        const hint = step.skipHint ? ' (' + step.skipHint + ')' : '';
+        box.append(el('div', { class: 'actions' }, [
+          el('button', { type: 'button', class: 'btn', text: 'Saltar este slot' + hint, onclick: () => {
+            wizard.choices.push({ slot: step.slot, value: null });
+            render();
+          } }),
+        ]));
+      }
+      return;
+    }
+
+    // Completo
+    const name = assembledName();
+    box.append(el('div', { class: 'done-box' }, [
+      el('p', { text: 'Nombre completo. Podés copiarlo o sumarlo a la lista de abajo.' }),
+      el('div', { class: 'preview-name' }, [el('code', { text: name })]),
+      el('div', { class: 'actions' }, [
+        el('button', { type: 'button', class: 'btn primary', text: 'Agregar a la lista', onclick: addToList }),
+        el('button', { type: 'button', class: 'btn', text: 'Copiar nombre', onclick: () => copyText(name) }),
+        el('button', { type: 'button', class: 'btn quiet', text: 'Empezar de nuevo', onclick: restart }),
+      ]),
+    ]));
+  }
+
+  function stepHeader(slot, optional, subtitle) {
+    const h = el('h2', {}, ['Elegí ', el('code', { text: slot })]);
+    const tag = el('span', { class: 'tag', text: optional ? 'opcional' : 'obligatorio' });
+    const head = el('div', { class: 'step-head' }, [h, tag]);
+    if (!subtitle) return head;
+    return el('div', {}, [head, el('p', { class: 'hint', text: subtitle, style: 'margin:4px 0 0;color:var(--muted);font-size:13px' })]);
+  }
+
+  function cardGrid(options, onPick) {
+    return el('div', { class: 'cards' }, options.map((o) =>
+      el('button', { type: 'button', class: 'card', onclick: () => onPick(o.value) }, [
+        el('span', { class: 'value', text: o.value }),
+        el('span', { class: 'desc', text: o.description || '' }),
+      ])
+    ));
+  }
+
+  /* ---------------- Acciones del asistente ---------------- */
+  function goBackTo(index) {
+    // index -1 = volver a elegir categoría; n = volver al paso n (se descarta lo posterior)
+    if (index < 0) {
+      wizard.category = null;
+      wizard.choices = [];
+    } else {
+      wizard.choices = wizard.choices.slice(0, index);
+    }
+    render();
+  }
+
+  function restart() {
+    wizard.category = null;
+    wizard.choices = [];
+    $('#decision').value = '';
+    render();
+    $('#decision').focus();
+  }
+
+  function addToList() {
+    if (!isComplete()) return;
+    list.unshift({
+      name: assembledName(),
+      decision: $('#decision').value.trim(),
+      createdAt: new Date().toISOString(),
+    });
+    saveList();
+    renderList();
+    toast('Agregado a la lista');
+    restart();
+  }
+
+  /* ---------------- Lista acumulada ---------------- */
+  function formatDate(iso) {
+    const d = new Date(iso);
+    if (isNaN(d)) return '';
+    return d.toLocaleDateString('es', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
+
+  function renderList() {
+    const body = $('#list-body');
+    body.replaceChildren();
+    $('#list-count').textContent = list.length ? '(' + list.length + ')' : '';
+    $('#list-empty').hidden = list.length > 0;
+    $('#list-table').hidden = list.length === 0;
+    $('#export-md').disabled = list.length === 0;
+    $('#export-json').disabled = list.length === 0;
+    renderClearZone(false);
+
+    list.forEach((item, i) => {
+      body.append(el('tr', {}, [
+        el('td', { class: 'name', text: item.name }),
+        el('td', { class: 'decision' }, item.decision
+          ? item.decision
+          : el('span', { class: 'none', text: 'sin decisión anotada' })),
+        el('td', { class: 'date', text: formatDate(item.createdAt) }),
+        el('td', { class: 'row-actions' }, [
+          el('button', { type: 'button', class: 'btn small', text: 'Copiar', onclick: () => copyText(item.name) }),
+          el('button', { type: 'button', class: 'btn small quiet', text: 'Borrar', onclick: () => {
+            list.splice(i, 1);
+            saveList();
+            renderList();
+          } }),
+        ]),
+      ]));
+    });
+  }
+
+  function renderClearZone(confirming) {
+    const zone = $('#clear-zone');
+    zone.replaceChildren();
+    if (!list.length) return;
+    if (!confirming) {
+      zone.append(el('button', { type: 'button', class: 'btn small quiet', text: 'Vaciar lista', onclick: () => renderClearZone(true) }));
+      return;
+    }
+    zone.append(el('span', { class: 'confirm' }, [
+      'Se borran ' + list.length + ' tokens.',
+      el('button', { type: 'button', class: 'btn small danger', text: 'Vaciar', onclick: () => {
+        list = [];
+        saveList();
+        renderList();
+        toast('Lista vaciada');
+      } }),
+      el('button', { type: 'button', class: 'btn small quiet', text: 'Cancelar', onclick: () => renderClearZone(false) }),
+    ]));
+  }
+
+  /* ---------------- Export ---------------- */
+  function escapeMdCell(s) {
+    return String(s || '').replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
+  }
+  function exportMarkdown() {
+    const lines = ['| nombre | decisión |', '| --- | --- |'];
+    for (const item of list) {
+      lines.push('| `' + item.name + '` | ' + escapeMdCell(item.decision) + ' |');
+    }
+    copyText(lines.join('\n'), 'Markdown copiado al portapapeles');
+  }
+  function exportJson() {
+    const data = list.map((i) => ({ name: i.name, decision: i.decision, createdAt: i.createdAt }));
+    copyText(JSON.stringify(data, null, 2), 'JSON copiado al portapapeles');
+  }
+
+  /* ---------------- Arranque ---------------- */
+  function render() {
+    renderPreview();
+    renderCrumbs();
+    renderStep();
+  }
+
+  $('#restart-top').addEventListener('click', restart);
+  $('#copy-preview').addEventListener('click', () => copyText(assembledName()));
+  $('#export-md').addEventListener('click', exportMarkdown);
+  $('#export-json').addEventListener('click', exportJson);
+
+  renderLegend();
+  render();
+  renderList();
+})();
+</script>
+</body>
+</html>
