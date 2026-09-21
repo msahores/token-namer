@@ -59,6 +59,12 @@
   }
   .header h1 { font-size: 20px; margin: 0; letter-spacing: -0.01em; }
   .header p { margin: 0; color: var(--muted); font-size: 14px; }
+  .intro {
+    border: 1px solid var(--line); border-radius: var(--radius);
+    background: var(--surface); padding: 12px 16px; margin-top: 10px;
+    display: grid; gap: 8px; font-size: 14px; line-height: 1.45;
+  }
+  .intro p { margin: 0; color: inherit; font-size: inherit; }
 
   /* ---------- Preview ---------- */
   .preview {
@@ -590,6 +596,10 @@ const CONFIG = {
   <header class="header">
     <h1>Token Namer</h1>
     <p>Armá el nombre de un token primitivo o semántico eligiendo un valor por slot.</p>
+    <div class="intro">
+      <p><strong>Cómo leer esta herramienta.</strong> Un token tiene dos capas. El <strong>primitivo</strong> nombra un valor del catálogo sin decir para qué se usa (<code>color-blue-500</code>). El <strong>semántico</strong> nombra una decisión de uso y apunta a un primitivo (<code>color-background-danger-hovered</code>). El nombre se arma con slots en orden fijo; se usan solo los que hacen falta.</p>
+      <p>Tres reglas que no están en ningún slot: la marca y el modo claro/oscuro cambian el valor, nunca el nombre. Que un nombre sea válido no significa que el token exista: se crea cuando algo lo usa. Y las opciones cargadas acá son un borrador de frontend para discutir, no la gramática cerrada del equipo.</p>
+    </div>
   </header>
 
   <section class="preview" aria-live="polite" aria-label="Nombre en construcción">
