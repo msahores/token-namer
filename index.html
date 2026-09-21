@@ -24,6 +24,7 @@
     --slot-variant-bg:  #e8e1f7; --slot-variant-ink:  #4a2f86;
     --slot-state-bg:    #fbebcf; --slot-state-ink:    #7a4e0a;
     --slot-scale-bg:    #f9dee3; --slot-scale-ink:    #8a2a3f;
+    --slot-family-bg:   #d6eef0; --slot-family-ink:   #135c63;
     --slot-other-bg:    #e6e8ec; --slot-other-ink:    #3a3f4b;
 
     --sans: -apple-system, "Segoe UI", Roboto, Ubuntu, "Noto Sans", "Liberation Sans", "Helvetica Neue", Arial, sans-serif;
@@ -156,6 +157,7 @@
   th { font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; }
   tr:last-child td { border-bottom: 0; }
   td.name { font-family: var(--mono); white-space: nowrap; }
+  td.tier { color: var(--muted); white-space: nowrap; }
   td.decision { min-width: 220px; }
   td.decision .none { color: var(--muted); font-style: italic; }
   td.date { color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -206,7 +208,13 @@
  *                         Si un paso usa un slot que no está acá, se muestra
  *                         igual con un color gris genérico.
  *
- *   CONFIG.categories  -> lista ordenada de categorías. Cada una tiene:
+ *   CONFIG.tiers       -> primera elección del asistente: primitive o
+ *                         semantic. El tier NO forma parte del nombre; solo
+ *                         decide qué categorías y pasos se muestran. Cada
+ *                         tier tiene value, description y su lista de
+ *                         categories.
+ *
+ *   Cada categoría tiene:
  *       value        el segmento literal que va en el nombre (kebab-case)
  *       description  una línea que se ve en la card
  *       steps        secuencia ORDENADA de pasos después de la categoría
@@ -218,7 +226,7 @@
  *       options      lista de { value, description }
  *
  * Regla de ensamblado: category + valores elegidos en orden, unidos con
- * guion medio. Los slots saltados no aparecen. Los valores se escriben
+ * guion medio. El tier no se escribe. Los slots saltados no aparecen. Los valores se escriben
  * literal (text_on conserva su guion bajo interno).
  *
  * Decisión de gramática: saltar un slot opcional no bloquea los siguientes.
@@ -232,180 +240,344 @@ const CONFIG = {
     variant:  { label: 'variant',  bg: 'var(--slot-variant-bg)',  ink: 'var(--slot-variant-ink)' },
     state:    { label: 'state',    bg: 'var(--slot-state-bg)',    ink: 'var(--slot-state-ink)' },
     scale:    { label: 'scale',    bg: 'var(--slot-scale-bg)',    ink: 'var(--slot-scale-ink)' },
+    family:   { label: 'family',   bg: 'var(--slot-family-bg)',   ink: 'var(--slot-family-ink)' },
   },
 
-  categories: [
+  tiers: [
+    /* -----------------------------------------------------------------
+     * SEMANTIC: nombran una decisión de uso (category-role-variant-state
+     * o category-role-scale). Es la gramática original del armador.
+     * ----------------------------------------------------------------- */
     {
-      value: 'color',
-      description: 'colores de texto, fondos, bordes e iconos',
-      steps: [
+      value: 'semantic',
+      description: 'nombra una decisión de uso: dónde y para qué se aplica un valor',
+      categories: [
         {
-          slot: 'role',
-          optional: false,
-          options: [
-            { value: 'text',       description: 'pinta letras' },
-            { value: 'text_on',    description: 'letras sobre una superficie de color, ej text_on-danger' },
-            { value: 'background', description: 'fondos y superficies' },
-            { value: 'border',     description: 'bordes y divisores' },
-            { value: 'icon',       description: 'iconos' },
+          value: 'color',
+          description: 'colores de texto, fondos, bordes e iconos',
+          steps: [
+            {
+              slot: 'role',
+              optional: false,
+              options: [
+                { value: 'text',       description: 'pinta letras' },
+                { value: 'text_on',    description: 'letras sobre una superficie de color, ej text_on-danger' },
+                { value: 'background', description: 'fondos y superficies' },
+                { value: 'border',     description: 'bordes y divisores' },
+                { value: 'icon',       description: 'iconos' },
+              ],
+            },
+            {
+              slot: 'variant',
+              optional: true,
+              skipHint: 'sin variant equivale a default',
+              options: [
+                { value: 'default', description: 'el neutro de la familia' },
+                { value: 'subtle',  description: 'versión apagada o secundaria' },
+                { value: 'label',   description: 'rótulos que nombran un campo o dato (form labels, settings, filtros); tono intermedio entre default y subtle' },
+                { value: 'accent',  description: 'color de marca, acción principal' },
+                { value: 'danger',  description: 'acción destructiva' },
+                { value: 'success', description: 'feedback positivo' },
+                { value: 'warning', description: 'feedback de precaución' },
+                { value: 'error',   description: 'feedback de error en datos' },
+                { value: 'info',    description: 'feedback informativo' },
+                { value: 'neutral', description: 'feedback sin carga, ej estado borrador' },
+                { value: 'inverse', description: 'sobre superficie oscura fija, en cualquier tema' },
+              ],
+            },
+            {
+              slot: 'state',
+              optional: true,
+              skipHint: 'sin state es el estado de reposo',
+              options: [
+                { value: 'hovered',  description: 'el puntero está encima' },
+                { value: 'pressed',  description: 'mientras se mantiene presionado' },
+                { value: 'focused',  description: 'tiene el foco del teclado' },
+                { value: 'disabled', description: 'no admite interacción' },
+                { value: 'selected', description: 'elegido dentro de un grupo' },
+              ],
+            },
           ],
         },
+
         {
-          slot: 'variant',
-          optional: true,
-          skipHint: 'sin variant equivale a default',
-          options: [
-            { value: 'default', description: 'el neutro de la familia' },
-            { value: 'subtle',  description: 'versión apagada o secundaria' },
-            { value: 'label',   description: 'rótulos que nombran un campo o dato (form labels, settings, filtros); tono intermedio entre default y subtle' },
-            { value: 'accent',  description: 'color de marca, acción principal' },
-            { value: 'danger',  description: 'acción destructiva' },
-            { value: 'success', description: 'feedback positivo' },
-            { value: 'warning', description: 'feedback de precaución' },
-            { value: 'error',   description: 'feedback de error en datos' },
-            { value: 'info',    description: 'feedback informativo' },
-            { value: 'neutral', description: 'feedback sin carga, ej estado borrador' },
-            { value: 'inverse', description: 'sobre superficie oscura fija, en cualquier tema' },
+          value: 'space',
+          description: 'distancias dentro y entre elementos',
+          steps: [
+            {
+              slot: 'role',
+              optional: false,
+              options: [
+                { value: 'inset',  description: 'padding interno de un contenedor' },
+                { value: 'stack',  description: 'separación vertical entre apilados' },
+                { value: 'inline', description: 'separación horizontal en una fila; sigue el eje del texto' },
+              ],
+            },
+            {
+              slot: 'scale',
+              optional: false,
+              options: [
+                { value: '1-x', description: '1 vez la base de 4px' },
+                { value: '2-x', description: '2 veces la base de 4px' },
+                { value: '3-x', description: '3 veces la base de 4px' },
+                { value: '4-x', description: '4 veces la base de 4px' },
+              ],
+            },
           ],
         },
+
         {
-          slot: 'state',
-          optional: true,
-          skipHint: 'sin state es el estado de reposo',
-          options: [
-            { value: 'hovered',  description: 'el puntero está encima' },
-            { value: 'pressed',  description: 'mientras se mantiene presionado' },
-            { value: 'focused',  description: 'tiene el foco del teclado' },
-            { value: 'disabled', description: 'no admite interacción' },
-            { value: 'selected', description: 'elegido dentro de un grupo' },
+          value: 'typography',
+          description: 'tokens compuestos de estilo de texto',
+          steps: [
+            {
+              slot: 'role',
+              optional: false,
+              options: [
+                { value: 'heading', description: 'títulos y encabezados' },
+                { value: 'body',    description: 'texto corrido' },
+                { value: 'label',   description: 'etiquetas de controles y campos' },
+                { value: 'caption', description: 'texto auxiliar pequeño' },
+              ],
+            },
+            {
+              slot: 'scale',
+              optional: false,
+              options: [
+                { value: 'small',  description: 'tamaño chico dentro del rol' },
+                { value: 'medium', description: 'tamaño base dentro del rol' },
+                { value: 'large',  description: 'tamaño grande dentro del rol' },
+              ],
+            },
+          ],
+        },
+
+        {
+          value: 'size',
+          description: 'dimensiones de elementos (alto, ancho, iconos)',
+          steps: [
+            {
+              slot: 'scale',
+              optional: false,
+              options: [
+                { value: 'xs', description: 'extra chico' },
+                { value: 's',  description: 'chico' },
+                { value: 'm',  description: 'medio' },
+                { value: 'l',  description: 'grande' },
+                { value: 'xl', description: 'extra grande' },
+              ],
+            },
+          ],
+        },
+
+        {
+          value: 'shape',
+          description: 'forma de los elementos, hoy solo radios de esquina',
+          steps: [
+            {
+              slot: 'role',
+              optional: false,
+              options: [
+                { value: 'corner', description: 'radio de las esquinas' },
+              ],
+            },
+            {
+              slot: 'scale',
+              optional: false,
+              options: [
+                { value: 's',    description: 'radio chico' },
+                { value: 'm',    description: 'radio medio' },
+                { value: 'l',    description: 'radio grande' },
+                { value: 'pill', description: 'pill queda fuera de la escala numérica a propósito' },
+              ],
+            },
+          ],
+        },
+
+        {
+          value: 'elevation',
+          description: 'niveles de profundidad (sombras)',
+          steps: [
+            {
+              slot: 'scale',
+              optional: false,
+              options: [
+                { value: '0', description: 'al ras, sin sombra' },
+                { value: '1', description: 'apenas despegado de la superficie' },
+                { value: '2', description: 'flotante, ej menús y popovers' },
+                { value: '3', description: 'máxima profundidad, ej modales' },
+              ],
+            },
+          ],
+        },
+
+        {
+          value: 'breakpoint',
+          description: 'anchos de pantalla donde cambia el layout',
+          steps: [
+            {
+              slot: 'scale',
+              optional: false,
+              options: [
+                { value: 's',  description: 'pantallas chicas' },
+                { value: 'm',  description: 'pantallas medianas' },
+                { value: 'l',  description: 'pantallas grandes' },
+                { value: 'xl', description: 'pantallas extra grandes' },
+              ],
+            },
           ],
         },
       ],
     },
 
+    /* -----------------------------------------------------------------
+     * PRIMITIVE: nombran un valor crudo de la paleta, sin decir para qué
+     * se usa. Estructura: category-family-scale. Family se salta en las
+     * categorías donde no aplica.
+     *
+     * PROPUESTA INICIAL para discutir: estas listas son un punto de
+     * partida, no la gramática cerrada del equipo.
+     * ----------------------------------------------------------------- */
     {
-      value: 'space',
-      description: 'distancias dentro y entre elementos',
-      steps: [
+      value: 'primitive',
+      description: 'nombra un valor crudo de la paleta, sin decir para qué se usa',
+      categories: [
         {
-          slot: 'role',
-          optional: false,
-          options: [
-            { value: 'inset',  description: 'padding interno de un contenedor' },
-            { value: 'stack',  description: 'separación vertical entre apilados' },
-            { value: 'inline', description: 'separación horizontal en una fila; sigue el eje del texto' },
+          value: 'color',
+          description: 'tonos de la paleta base',
+          steps: [
+            {
+              slot: 'family',
+              optional: false,
+              options: [
+                { value: 'gray',   description: 'grises y neutros' },
+                { value: 'blue',   description: 'azules' },
+                { value: 'green',  description: 'verdes' },
+                { value: 'red',    description: 'rojos' },
+                { value: 'amber',  description: 'ámbar y naranjas' },
+                { value: 'purple', description: 'violetas' },
+              ],
+            },
+            {
+              slot: 'scale',
+              optional: false,
+              options: [
+                { value: '50',  description: 'el más claro de la familia' },
+                { value: '100', description: 'muy claro' },
+                { value: '200', description: 'claro' },
+                { value: '300', description: 'claro medio' },
+                { value: '400', description: 'medio claro' },
+                { value: '500', description: 'el tono base de la familia' },
+                { value: '600', description: 'medio oscuro' },
+                { value: '700', description: 'oscuro' },
+                { value: '800', description: 'muy oscuro' },
+                { value: '900', description: 'el más oscuro de la familia' },
+              ],
+            },
           ],
         },
-        {
-          slot: 'scale',
-          optional: false,
-          options: [
-            { value: '1-x', description: '1 vez la base de 4px' },
-            { value: '2-x', description: '2 veces la base de 4px' },
-            { value: '3-x', description: '3 veces la base de 4px' },
-            { value: '4-x', description: '4 veces la base de 4px' },
-          ],
-        },
-      ],
-    },
 
-    {
-      value: 'typography',
-      description: 'tokens compuestos de estilo de texto',
-      steps: [
         {
-          slot: 'role',
-          optional: false,
-          options: [
-            { value: 'heading', description: 'títulos y encabezados' },
-            { value: 'body',    description: 'texto corrido' },
-            { value: 'label',   description: 'etiquetas de controles y campos' },
-            { value: 'caption', description: 'texto auxiliar pequeño' },
+          value: 'space',
+          description: 'pasos de la escala de espaciado',
+          steps: [
+            {
+              slot: 'scale',
+              optional: false,
+              options: [
+                { value: '1',  description: '4px, 1 vez la base' },
+                { value: '2',  description: '8px, 2 veces la base' },
+                { value: '3',  description: '12px, 3 veces la base' },
+                { value: '4',  description: '16px, 4 veces la base' },
+                { value: '6',  description: '24px, 6 veces la base' },
+                { value: '8',  description: '32px, 8 veces la base' },
+                { value: '12', description: '48px, 12 veces la base' },
+                { value: '16', description: '64px, 16 veces la base' },
+              ],
+            },
           ],
         },
-        {
-          slot: 'scale',
-          optional: false,
-          options: [
-            { value: 'small',  description: 'tamaño chico dentro del rol' },
-            { value: 'medium', description: 'tamaño base dentro del rol' },
-            { value: 'large',  description: 'tamaño grande dentro del rol' },
-          ],
-        },
-      ],
-    },
 
-    {
-      value: 'size',
-      description: 'dimensiones de elementos (alto, ancho, iconos)',
-      steps: [
         {
-          slot: 'scale',
-          optional: false,
-          options: [
-            { value: 'xs', description: 'extra chico' },
-            { value: 's',  description: 'chico' },
-            { value: 'm',  description: 'medio' },
-            { value: 'l',  description: 'grande' },
-            { value: 'xl', description: 'extra grande' },
+          value: 'typography',
+          description: 'valores crudos de tipografía',
+          steps: [
+            {
+              slot: 'family',
+              optional: false,
+              options: [
+                { value: 'size',        description: 'tamaño de fuente' },
+                { value: 'weight',      description: 'peso de fuente' },
+                { value: 'line-height', description: 'interlineado' },
+              ],
+            },
+            {
+              slot: 'scale',
+              optional: false,
+              options: [
+                { value: '1', description: 'posición 1 de la escala, la menor' },
+                { value: '2', description: 'posición 2 de la escala' },
+                { value: '3', description: 'posición 3 de la escala' },
+                { value: '4', description: 'posición 4 de la escala' },
+                { value: '5', description: 'posición 5 de la escala' },
+                { value: '6', description: 'posición 6 de la escala' },
+                { value: '7', description: 'posición 7 de la escala, la mayor' },
+              ],
+            },
           ],
         },
-      ],
-    },
 
-    {
-      value: 'shape',
-      description: 'forma de los elementos, hoy solo radios de esquina',
-      steps: [
         {
-          slot: 'role',
-          optional: false,
-          options: [
-            { value: 'corner', description: 'radio de las esquinas' },
+          value: 'size',
+          description: 'pasos de la escala de dimensiones',
+          steps: [
+            {
+              slot: 'scale',
+              optional: false,
+              options: [
+                { value: '1', description: 'posición 1 de la escala, la menor' },
+                { value: '2', description: 'posición 2 de la escala' },
+                { value: '3', description: 'posición 3 de la escala' },
+                { value: '4', description: 'posición 4 de la escala' },
+                { value: '5', description: 'posición 5 de la escala' },
+                { value: '6', description: 'posición 6 de la escala, la mayor' },
+              ],
+            },
           ],
         },
-        {
-          slot: 'scale',
-          optional: false,
-          options: [
-            { value: 's',    description: 'radio chico' },
-            { value: 'm',    description: 'radio medio' },
-            { value: 'l',    description: 'radio grande' },
-            { value: 'pill', description: 'pill queda fuera de la escala numérica a propósito' },
-          ],
-        },
-      ],
-    },
 
-    {
-      value: 'elevation',
-      description: 'niveles de profundidad (sombras)',
-      steps: [
         {
-          slot: 'scale',
-          optional: false,
-          options: [
-            { value: '0', description: 'al ras, sin sombra' },
-            { value: '1', description: 'apenas despegado de la superficie' },
-            { value: '2', description: 'flotante, ej menús y popovers' },
-            { value: '3', description: 'máxima profundidad, ej modales' },
+          value: 'radius',
+          description: 'pasos de la escala de radios',
+          steps: [
+            {
+              slot: 'scale',
+              optional: false,
+              options: [
+                { value: '0',    description: 'sin radio, esquina recta' },
+                { value: '1',    description: 'radio menor' },
+                { value: '2',    description: 'radio medio' },
+                { value: '3',    description: 'radio mayor' },
+                { value: 'full', description: 'radio completo, fuera de la escala numérica' },
+              ],
+            },
           ],
         },
-      ],
-    },
 
-    {
-      value: 'breakpoint',
-      description: 'anchos de pantalla donde cambia el layout',
-      steps: [
         {
-          slot: 'scale',
-          optional: false,
-          options: [
-            { value: 's',  description: 'pantallas chicas' },
-            { value: 'm',  description: 'pantallas medianas' },
-            { value: 'l',  description: 'pantallas grandes' },
-            { value: 'xl', description: 'pantallas extra grandes' },
+          value: 'shadow',
+          description: 'pasos de la escala de sombras',
+          steps: [
+            {
+              slot: 'scale',
+              optional: false,
+              options: [
+                { value: '0', description: 'sin sombra' },
+                { value: '1', description: 'sombra mínima' },
+                { value: '2', description: 'sombra media' },
+                { value: '3', description: 'sombra máxima' },
+              ],
+            },
           ],
         },
       ],
@@ -417,7 +589,7 @@ const CONFIG = {
 <div class="page">
   <header class="header">
     <h1>Token Namer</h1>
-    <p>Armá el nombre de un token semántico eligiendo un valor por slot.</p>
+    <p>Armá el nombre de un token primitivo o semántico eligiendo un valor por slot.</p>
   </header>
 
   <section class="preview" aria-live="polite" aria-label="Nombre en construcción">
@@ -457,6 +629,7 @@ const CONFIG = {
         <thead>
           <tr>
             <th scope="col">Nombre</th>
+            <th scope="col">Tier</th>
             <th scope="col">Decisión que nombra</th>
             <th scope="col">Fecha</th>
             <th scope="col">Acciones</th>
@@ -478,7 +651,8 @@ const CONFIG = {
 
   /* ---------------- Estado del asistente ---------------- */
   // choices: un elemento por paso completado, { slot, value } (value null = saltado)
-  const wizard = { category: null, choices: [] };
+  // tier no forma parte del nombre; solo elige qué categorías se ofrecen
+  const wizard = { tier: null, category: null, choices: [] };
 
   const STORAGE_KEY = 'token-namer.list.v1';
   let list = loadList();
@@ -507,8 +681,12 @@ const CONFIG = {
     return s ? `background:${s.bg};color:${s.ink}` : 'background:var(--slot-other-bg);color:var(--slot-other-ink)';
   }
 
+  function tierConfig() {
+    return CONFIG.tiers.find((t) => t.value === wizard.tier) || null;
+  }
   function categoryConfig() {
-    return CONFIG.categories.find((c) => c.value === wizard.category) || null;
+    const tier = tierConfig();
+    return tier ? (tier.categories.find((c) => c.value === wizard.category) || null) : null;
   }
   function steps() {
     const cat = categoryConfig();
@@ -586,7 +764,7 @@ const CONFIG = {
     const segs = assembledSegments();
 
     if (!segs.length) {
-      box.append(el('span', { class: 'empty', text: 'Elegí una categoría para empezar.' }));
+      box.append(el('span', { class: 'empty', text: wizard.tier ? 'Elegí una categoría para seguir.' : 'Elegí un tier para empezar.' }));
     } else {
       segs.forEach((s, i) => {
         if (i > 0) box.append(el('span', { class: 'sep', text: '-' }));
@@ -614,9 +792,10 @@ const CONFIG = {
   function renderCrumbs() {
     const nav = $('#crumbs');
     nav.replaceChildren();
-    if (!wizard.category) return;
+    if (!wizard.tier) return;
 
-    const crumbs = [{ slot: 'category', value: wizard.category, index: -1 }];
+    const crumbs = [{ slot: 'tier', value: wizard.tier, index: -2 }];
+    if (wizard.category) crumbs.push({ slot: 'category', value: wizard.category, index: -1 });
     wizard.choices.forEach((c, i) => crumbs.push({ slot: c.slot, value: c.value, index: i }));
 
     crumbs.forEach((c, i) => {
@@ -631,9 +810,10 @@ const CONFIG = {
     });
 
     const step = currentStep();
-    if (step) {
+    const pendingSlot = !wizard.category ? 'category' : (step ? step.slot : null);
+    if (pendingSlot) {
       nav.append(el('span', { class: 'crumb-arrow', text: '›' }));
-      nav.append(el('span', { class: 'crumb current' }, [el('span', { class: 'slot', text: step.slot })]));
+      nav.append(el('span', { class: 'crumb current' }, [el('span', { class: 'slot', text: pendingSlot })]));
     }
   }
 
@@ -642,9 +822,20 @@ const CONFIG = {
     const box = $('#step');
     box.replaceChildren();
 
+    if (!wizard.tier) {
+      box.append(stepHeader('tier', false, 'El tier no forma parte del nombre; solo decide qué pasos siguen.'));
+      box.append(cardGrid(CONFIG.tiers.map((t) => ({ value: t.value, description: t.description })), (v) => {
+        wizard.tier = v;
+        wizard.category = null;
+        wizard.choices = [];
+        render();
+      }));
+      return;
+    }
+
     if (!wizard.category) {
       box.append(stepHeader('category', false, 'Elegí de qué familia es el token.'));
-      box.append(cardGrid(CONFIG.categories.map((c) => ({ value: c.value, description: c.description })), (v) => {
+      box.append(cardGrid(tierConfig().categories.map((c) => ({ value: c.value, description: c.description })), (v) => {
         wizard.category = v;
         wizard.choices = [];
         render();
@@ -703,8 +894,13 @@ const CONFIG = {
 
   /* ---------------- Acciones del asistente ---------------- */
   function goBackTo(index) {
-    // index -1 = volver a elegir categoría; n = volver al paso n (se descarta lo posterior)
-    if (index < 0) {
+    // index -2 = volver a elegir tier; -1 = volver a elegir categoría;
+    // n = volver al paso n (se descarta lo posterior)
+    if (index <= -2) {
+      wizard.tier = null;
+      wizard.category = null;
+      wizard.choices = [];
+    } else if (index === -1) {
       wizard.category = null;
       wizard.choices = [];
     } else {
@@ -714,6 +910,7 @@ const CONFIG = {
   }
 
   function restart() {
+    wizard.tier = null;
     wizard.category = null;
     wizard.choices = [];
     $('#decision').value = '';
@@ -725,6 +922,7 @@ const CONFIG = {
     if (!isComplete()) return;
     list.unshift({
       name: assembledName(),
+      tier: wizard.tier,
       decision: $('#decision').value.trim(),
       createdAt: new Date().toISOString(),
     });
@@ -754,6 +952,7 @@ const CONFIG = {
     list.forEach((item, i) => {
       body.append(el('tr', {}, [
         el('td', { class: 'name', text: item.name }),
+        el('td', { class: 'tier', text: item.tier || '' }),
         el('td', { class: 'decision' }, item.decision
           ? item.decision
           : el('span', { class: 'none', text: 'sin decisión anotada' })),
@@ -795,14 +994,14 @@ const CONFIG = {
     return String(s || '').replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
   }
   function exportMarkdown() {
-    const lines = ['| nombre | decisión |', '| --- | --- |'];
+    const lines = ['| nombre | tier | decisión |', '| --- | --- | --- |'];
     for (const item of list) {
-      lines.push('| `' + item.name + '` | ' + escapeMdCell(item.decision) + ' |');
+      lines.push('| `' + item.name + '` | ' + escapeMdCell(item.tier) + ' | ' + escapeMdCell(item.decision) + ' |');
     }
     copyText(lines.join('\n'), 'Markdown copiado al portapapeles');
   }
   function exportJson() {
-    const data = list.map((i) => ({ name: i.name, decision: i.decision, createdAt: i.createdAt }));
+    const data = list.map((i) => ({ name: i.name, tier: i.tier || null, decision: i.decision, createdAt: i.createdAt }));
     copyText(JSON.stringify(data, null, 2), 'JSON copiado al portapapeles');
   }
 
