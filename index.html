@@ -436,16 +436,16 @@ const CONFIG = {
 
         {
           value: 'shadow',
-          description: 'steps of the shadow ladder',
+          description: 'steps of the shadow ladder, in hundredths, with room for a step in between',
           steps: [
             {
               slot: 'scale',
               optional: false,
               options: [
-                { value: '0', description: 'no shadow' },
-                { value: '1', description: 'minimal shadow' },
-                { value: '2', description: 'medium shadow' },
-                { value: '3', description: 'maximum shadow' },
+                { value: '0',   description: 'no shadow' },
+                { value: '100', description: 'minimal shadow' },
+                { value: '200', description: 'medium shadow' },
+                { value: '300', description: 'maximum shadow' },
               ],
             },
           ],
@@ -614,9 +614,9 @@ const CONFIG = {
               optional: false,
               options: [
                 { value: 'flat',    description: 'flush, no shadow; points to shadow-0' },
-                { value: 'raised',  description: 'resting on the surface, e.g. cards; points to shadow-1' },
-                { value: 'overlay', description: 'floating, e.g. menus and popovers; points to shadow-2' },
-                { value: 'modal',   description: 'maximum depth, blocks what is behind; points to shadow-3' },
+                { value: 'raised',  description: 'resting on the surface, e.g. cards; points to shadow-100' },
+                { value: 'overlay', description: 'floating, e.g. menus and popovers; points to shadow-200' },
+                { value: 'modal',   description: 'maximum depth, blocks what is behind; points to shadow-300' },
               ],
             },
           ],
