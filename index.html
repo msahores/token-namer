@@ -232,6 +232,9 @@
  *                    when an earlier choice for `slot` is one of `values`
  *                    (e.g. white and black have no color scale)
  *       options      list of { value, description }
+ *       optionsBy    (optional) { slot, map }: instead of `options`, the
+ *                    list depends on the earlier choice for `slot`
+ *                    (e.g. the font scale depends on the font family)
  *
  * Assembly rule: category + chosen values in order, joined with hyphens.
  * The tier is not written. Skipped slots do not appear. Values are written
@@ -374,77 +377,59 @@ const CONFIG = {
         },
 
         {
-          value: 'font-family',
-          description: 'typefaces, named by value',
+          value: 'font',
+          description: 'raw typography values: typeface, size, line height, weight',
           steps: [
             {
-              slot: 'scale',
+              slot: 'family',
               optional: false,
               options: [
-                { value: 'sans',   description: 'example face; the primitive names the typeface, a semantic name says what it is for' },
-                { value: 'mono',   description: 'example face for code and identifiers' },
+                { value: 'family',      description: 'the typeface' },
+                { value: 'size',        description: 'font size, 4px base, in hundredths. Authored in px, emitted in rem' },
+                { value: 'line-height', description: 'line height, 4px base, in hundredths. Authored in px, emitted in rem' },
+                { value: 'weight',      description: 'font weight, named by value: not a continuous scale' },
               ],
             },
-          ],
-        },
-
-        {
-          value: 'font-size',
-          description: 'font sizes, 4px base, in hundredths. Authored in px, emitted in rem',
-          steps: [
             {
               slot: 'scale',
               optional: false,
-              options: [
-                { value: '300', description: '12px' },
-                { value: '350', description: '14px' },
-                { value: '400', description: '16px' },
-                { value: '550', description: '22px' },
-                { value: '600', description: '24px' },
-                { value: '700', description: '28px' },
-                { value: '800', description: '32px' },
-                { value: '900', description: '36px' },
-              ],
-            },
-          ],
-        },
-
-        {
-          value: 'font-line-height',
-          description: 'line heights, 4px base, in hundredths. Authored in px, emitted in rem',
-          steps: [
-            {
-              slot: 'scale',
-              optional: false,
-              options: [
-                { value: '400',  description: '16px' },
-                { value: '500',  description: '20px' },
-                { value: '600',  description: '24px' },
-                { value: '700',  description: '28px' },
-                { value: '800',  description: '32px' },
-                { value: '900',  description: '36px' },
-                { value: '1000', description: '40px' },
-                { value: '1100', description: '44px' },
-                { value: '1300', description: '52px' },
-                { value: '1600', description: '64px' },
-              ],
-            },
-          ],
-        },
-
-        {
-          value: 'font-weight',
-          description: 'font weights, named by value: not a continuous scale',
-          steps: [
-            {
-              slot: 'scale',
-              optional: false,
-              options: [
-                { value: 'regular',  description: '400' },
-                { value: 'medium',   description: '500' },
-                { value: 'semibold', description: '600' },
-                { value: 'bold',     description: '700, only if a style uses it' },
-              ],
+              optionsBy: {
+                slot: 'family',
+                map: {
+                  'family': [
+                    { value: 'sans', description: 'example face; the primitive names the typeface, a semantic name says what it is for' },
+                    { value: 'mono', description: 'example face for code and identifiers' },
+                  ],
+                  'size': [
+                    { value: '300', description: '12px' },
+                    { value: '350', description: '14px' },
+                    { value: '400', description: '16px' },
+                    { value: '550', description: '22px' },
+                    { value: '600', description: '24px' },
+                    { value: '700', description: '28px' },
+                    { value: '800', description: '32px' },
+                    { value: '900', description: '36px' },
+                  ],
+                  'line-height': [
+                    { value: '400',  description: '16px' },
+                    { value: '500',  description: '20px' },
+                    { value: '600',  description: '24px' },
+                    { value: '700',  description: '28px' },
+                    { value: '800',  description: '32px' },
+                    { value: '900',  description: '36px' },
+                    { value: '1000', description: '40px' },
+                    { value: '1100', description: '44px' },
+                    { value: '1300', description: '52px' },
+                    { value: '1600', description: '64px' },
+                  ],
+                  'weight': [
+                    { value: 'regular',  description: '400' },
+                    { value: 'medium',   description: '500' },
+                    { value: 'semibold', description: '600' },
+                    { value: 'bold',     description: '700, only if a style uses it' },
+                  ],
+                },
+              },
             },
           ],
         },
@@ -785,6 +770,12 @@ const CONFIG = {
   function currentStep() {
     return steps()[wizard.choices.length] || null;
   }
+  // Options of a step: a fixed list, or one that depends on an earlier choice.
+  function stepOptions(step) {
+    if (!step.optionsBy) return step.options || [];
+    const prev = wizard.choices.find((c) => c.slot === step.optionsBy.slot);
+    return (prev && step.optionsBy.map[prev.value]) || [];
+  }
   function isComplete() {
     return !!wizard.category && wizard.choices.length === steps().length;
   }
@@ -936,7 +927,7 @@ const CONFIG = {
     const step = currentStep();
     if (step) {
       box.append(stepHeader(step.slot, step.optional, null));
-      box.append(cardGrid(step.options, (v) => {
+      box.append(cardGrid(stepOptions(step), (v) => {
         wizard.choices.push({ slot: step.slot, value: v });
         render();
       }));
