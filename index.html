@@ -228,6 +228,9 @@
  *       slot         slot name (role, variant, state, scale...)
  *       optional     true = can be skipped; skipping omits the segment
  *       skipHint     (optional) short text explaining what skipping means
+ *       skipIf       (optional) { slot, values }: the step does not exist
+ *                    when an earlier choice for `slot` is one of `values`
+ *                    (e.g. white and black have no color scale)
  *       options      list of { value, description }
  *
  * Assembly rule: category + chosen values in order, joined with hyphens.
@@ -281,14 +284,14 @@ const CONFIG = {
                 { value: 'red',    description: 'reds' },
                 { value: 'orange', description: 'oranges and ambers' },
                 { value: 'purple', description: 'purples and violets; family names are hue names only, never roles' },
-                { value: 'white',  description: 'pure white, single value: skip the scale' },
-                { value: 'black',  description: 'pure black, single value, only if something uses it: skip the scale' },
+                { value: 'white',  description: 'pure white, a single value with no scale' },
+                { value: 'black',  description: 'pure black, a single value with no scale; only if something uses it' },
               ],
             },
             {
               slot: 'scale',
-              optional: true,
-              skipHint: 'skip only for white and black, which have no scale',
+              optional: false,
+              skipIf: { slot: 'family', values: ['white', 'black'] },
               options: [
                 { value: '100',  description: 'the lightest of the family' },
                 { value: '200',  description: 'very light' },
@@ -768,9 +771,16 @@ const CONFIG = {
     const tier = tierConfig();
     return tier ? (tier.categories.find((c) => c.value === wizard.category) || null) : null;
   }
+  // Steps that apply given the choices made so far: a step with skipIf
+  // disappears when an earlier choice matches, so it is never offered.
   function steps() {
     const cat = categoryConfig();
-    return cat ? cat.steps : [];
+    if (!cat) return [];
+    return cat.steps.filter((step) => {
+      if (!step.skipIf) return true;
+      const prev = wizard.choices.find((c) => c.slot === step.skipIf.slot);
+      return !(prev && step.skipIf.values.includes(prev.value));
+    });
   }
   function currentStep() {
     return steps()[wizard.choices.length] || null;
