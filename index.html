@@ -258,10 +258,10 @@ const CONFIG = {
      * is for. Structure: category-family-scale. Family is skipped in the
      * categories where it does not apply.
      *
-     * Scales agreed with design (Sept 2026): color 100-1000, dimensions in
-     * hundredths of a 4px base, radius numeric plus `full`, font weights
-     * by name. Authored in px; the code decides the output unit per
-     * category (font sizes and line heights in rem, the rest in px).
+     * Scales used here: color 100-1000, dimensions in hundredths of a 4px
+     * base, radius numeric plus `full`, font weights by name. Authored in
+     * px; the code decides the output unit per category (font sizes and
+     * line heights in rem, the rest in px). Adapt them to your own system.
      * ----------------------------------------------------------------- */
     {
       value: 'primitive',
@@ -280,7 +280,7 @@ const CONFIG = {
                 { value: 'green',  description: 'greens' },
                 { value: 'red',    description: 'reds' },
                 { value: 'orange', description: 'oranges and ambers' },
-                { value: 'pink',   description: 'pinks and magentas; family names are hue names only, never roles like brand or whitelabel' },
+                { value: 'purple', description: 'purples and violets; family names are hue names only, never roles' },
                 { value: 'white',  description: 'pure white, single value: skip the scale' },
                 { value: 'black',  description: 'pure black, single value, only if something uses it: skip the scale' },
               ],
@@ -378,7 +378,8 @@ const CONFIG = {
               slot: 'scale',
               optional: false,
               options: [
-                { value: 'roboto', description: 'the brand typeface; "brand" is a semantic name, the primitive names the face' },
+                { value: 'sans',   description: 'example face; the primitive names the typeface, a semantic name says what it is for' },
+                { value: 'mono',   description: 'example face for code and identifiers' },
               ],
             },
           ],
@@ -447,7 +448,7 @@ const CONFIG = {
 
         {
           value: 'shadow',
-          description: 'steps of the shadow ladder (scale still to be defined by design)',
+          description: 'steps of the shadow ladder',
           steps: [
             {
               slot: 'scale',
@@ -468,8 +469,7 @@ const CONFIG = {
      * SEMANTIC: names a usage decision and points to a primitive.
      * Structure: category-role-variant-state (or category-role-scale).
      *
-     * DRAFT for discussion: this vocabulary is a frontend starting point
-     * for the next iteration with design, not the team's closed grammar.
+     * This vocabulary is an example to adapt, not a closed grammar.
      * ----------------------------------------------------------------- */
     {
       value: 'semantic',
@@ -498,7 +498,7 @@ const CONFIG = {
                 { value: 'default', description: 'the neutral of the family' },
                 { value: 'subtle',  description: 'muted or secondary version' },
                 { value: 'label',   description: 'labels that name a field or a value (form labels, settings, filters); a tone between default and subtle' },
-                { value: 'brand',   description: 'the brand this platform wears: the tenant color on the white label theme, the SonoSuite pink on the SonoSuite theme. The theme changes the value, never the name' },
+                { value: 'brand',   description: 'the brand accent; each theme assigns its own value, the name stays' },
                 { value: 'danger',  description: 'destructive action' },
                 { value: 'success', description: 'positive feedback' },
                 { value: 'warning', description: 'caution feedback' },
@@ -619,7 +619,7 @@ const CONFIG = {
 
         {
           value: 'elevation',
-          description: 'depth levels, named by use (PROPOSAL: design is still defining the shadow scale)',
+          description: 'depth levels, named by use',
           steps: [
             {
               slot: 'scale',
@@ -668,7 +668,7 @@ const CONFIG = {
   <dialog class="help-dialog" id="help-dialog" aria-labelledby="help-title">
     <h2 id="help-title">How to read this tool</h2>
     <p>A token has two layers. The <strong>primitive</strong> names a value of the catalog without saying what it is for (<code>color-blue-500</code>). The <strong>semantic</strong> names a usage decision and points to a primitive (<code>color-background-danger-hovered</code>). The name is built with slots in a fixed order; only the ones needed are used.</p>
-    <p>Three rules that live in no slot: the brand and the light/dark mode change the value, never the name. A valid name does not mean the token exists: it is created when something uses it. And the options loaded here are a frontend draft for discussion, not the team's closed grammar. Primitive scales follow what was agreed with design in September 2026; the semantic vocabulary is the next iteration.</p>
+    <p>Three rules that live in no slot: the brand and the light/dark mode change the value, never the name. A valid name does not mean the token exists: it is created when something uses it. And the options loaded here are an example grammar to adapt to your own system, not a closed one.</p>
     <div class="actions"><button class="btn small" id="help-close" type="button">Close</button></div>
   </dialog>
 

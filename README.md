@@ -8,6 +8,6 @@ Local use: open `index.html` with a double click (works over `file://`, no build
 
 The grammar (tiers, categories, steps, options and preview colors) lives in the `CONFIG` object at the top of `index.html`. To add an option, append `{ value, description }` to the matching list.
 
-Primitive scales follow what frontend and design agreed in September 2026: color from 100 to 1000, dimensions in hundredths of a 4px base, radius numeric plus `full`, font weights by name. The semantic vocabulary is a frontend draft for the next iteration.
+Primitive scales use one convention: color from 100 to 1000, dimensions in hundredths of a 4px base, radius numeric plus `full`, font weights by name. The semantic vocabulary is an example to adapt to your own system.
 
 The collected list is stored in the browser's `localStorage`.
