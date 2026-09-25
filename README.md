@@ -1,9 +1,13 @@
 # Token Namer
 
-Asistente estático de una sola página para componer nombres de design tokens primitivos o semánticos, un valor por slot. El tier (primitive o semantic) es la primera elección y no forma parte del nombre: solo decide qué categorías y pasos se muestran.
+Static single-page assistant to compose design token names, one value per slot. The tier (primitive or semantic) is the first choice and is not part of the name: it only decides which categories and steps are shown.
 
-Uso: abrir `index.html` con doble click (funciona por `file://`, sin build ni dependencias).
+Live: https://msahores.github.io/token-namer/
 
-La gramática (tiers, categorías, pasos, opciones y colores del preview) vive en el objeto `CONFIG` al inicio de `index.html`. Para agregar una opción alcanza con sumar `{ value, description }` a la lista correspondiente.
+Local use: open `index.html` with a double click (works over `file://`, no build, no dependencies).
 
-La lista acumulada se guarda en `localStorage` del navegador.
+The grammar (tiers, categories, steps, options and preview colors) lives in the `CONFIG` object at the top of `index.html`. To add an option, append `{ value, description }` to the matching list.
+
+Primitive scales follow what frontend and design agreed in September 2026: color from 100 to 1000, dimensions in hundredths of a 4px base, radius numeric plus `full`, font weights by name. The semantic vocabulary is a frontend draft for the next iteration.
+
+The collected list is stored in the browser's `localStorage`.

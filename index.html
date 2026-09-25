@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -201,106 +201,100 @@
 
 <script>
 /* =====================================================================
- * CONFIG: la gramática de los nombres de tokens.
+ * GRAMMAR. Everything the assistant offers lives in this object.
  *
- * Esta es LA fuente de verdad del asistente. Todo lo que se ve en pantalla
- * (categorías, pasos, opciones, colores del preview) sale de acá.
- * Para agregar una opción alcanza con sumar un objeto { value, description }
- * a la lista correspondiente. No hay que tocar nada más.
+ * Structure:
  *
- * Estructura:
+ *   CONFIG.slots       -> name of each slot and its color in the preview.
+ *                         A step whose slot is not listed here still renders,
+ *                         with a generic gray.
  *
- *   CONFIG.slots       -> nombre de cada slot y su color en el preview.
- *                         Si un paso usa un slot que no está acá, se muestra
- *                         igual con un color gris genérico.
+ *   CONFIG.tiers       -> first choice: primitive or semantic. The tier is
+ *                         NOT part of the name; it only decides which
+ *                         categories and steps are shown. Each tier has
+ *                         value, description and its list of categories.
  *
- *   CONFIG.tiers       -> primera elección del asistente: primitive o
- *                         semantic. El tier NO forma parte del nombre; solo
- *                         decide qué categorías y pasos se muestran. Cada
- *                         tier tiene value, description y su lista de
- *                         categories.
+ *   Each category has:
+ *       value        the literal segment that goes in the name (kebab-case)
+ *       description  one line shown on the card
+ *       steps        ORDERED sequence of steps after the category
  *
- *   Cada categoría tiene:
- *       value        el segmento literal que va en el nombre (kebab-case)
- *       description  una línea que se ve en la card
- *       steps        secuencia ORDENADA de pasos después de la categoría
+ *   Each step has:
+ *       slot         slot name (role, variant, state, scale...)
+ *       optional     true = can be skipped; skipping omits the segment
+ *       skipHint     (optional) short text explaining what skipping means
+ *       options      list of { value, description }
  *
- *   Cada paso (step) tiene:
- *       slot         nombre del slot (role, variant, state, scale...)
- *       optional     true = se puede saltar; saltarlo omite el segmento
- *       skipHint     (opcional) texto corto que explica qué significa saltar
- *       options      lista de { value, description }
+ * Assembly rule: category + chosen values in order, joined with hyphens.
+ * The tier is not written. Skipped slots do not appear. Values are written
+ * literally (text_on keeps its inner underscore).
  *
- * Regla de ensamblado: category + valores elegidos en orden, unidos con
- * guion medio. El tier no se escribe. Los slots saltados no aparecen. Los valores se escriben
- * literal (text_on conserva su guion bajo interno).
- *
- * Decisión de gramática: saltar un slot opcional no bloquea los siguientes.
- * Ejemplo válido: color + background + (saltar variant) + hovered
+ * Grammar decision: skipping an optional slot does not block the next ones.
+ * Valid example: color + background + (skip variant) + hovered
  *   => color-background-hovered
+ *
+ * Numeric scales follow one convention: hundredths. For dimensions the
+ * base is 4px (100 = 4px, 050 = 2px, 150 = 6px, 400 = 16px). For color the
+ * steps go from 100 (lightest) to 1000 (darkest), no half steps by default.
  * ===================================================================== */
 const CONFIG = {
   slots: {
     category: { label: 'category', bg: 'var(--slot-category-bg)', ink: 'var(--slot-category-ink)' },
+    family:   { label: 'family',   bg: 'var(--slot-family-bg)',   ink: 'var(--slot-family-ink)' },
     role:     { label: 'role',     bg: 'var(--slot-role-bg)',     ink: 'var(--slot-role-ink)' },
     variant:  { label: 'variant',  bg: 'var(--slot-variant-bg)',  ink: 'var(--slot-variant-ink)' },
     state:    { label: 'state',    bg: 'var(--slot-state-bg)',    ink: 'var(--slot-state-ink)' },
     scale:    { label: 'scale',    bg: 'var(--slot-scale-bg)',    ink: 'var(--slot-scale-ink)' },
-    family:   { label: 'family',   bg: 'var(--slot-family-bg)',   ink: 'var(--slot-family-ink)' },
   },
 
   tiers: [
     /* -----------------------------------------------------------------
-     * SEMANTIC: nombran una decisión de uso (category-role-variant-state
-     * o category-role-scale). Es la gramática original del armador.
+     * PRIMITIVE: names a raw value of the catalog without saying what it
+     * is for. Structure: category-family-scale. Family is skipped in the
+     * categories where it does not apply.
+     *
+     * Scales agreed with design (Sept 2026): color 100-1000, dimensions in
+     * hundredths of a 4px base, radius numeric plus `full`, font weights
+     * by name. Authored in px; the code decides the output unit per
+     * category (font sizes and line heights in rem, the rest in px).
      * ----------------------------------------------------------------- */
     {
-      value: 'semantic',
-      description: 'nombra una decisión de uso: dónde y para qué se aplica un valor',
+      value: 'primitive',
+      description: 'names a raw value of the palette, without saying what it is for',
       categories: [
         {
           value: 'color',
-          description: 'colores de texto, fondos, bordes e iconos',
+          description: 'hues of the base palette',
           steps: [
             {
-              slot: 'role',
+              slot: 'family',
               optional: false,
               options: [
-                { value: 'text',       description: 'pinta letras' },
-                { value: 'text_on',    description: 'letras sobre una superficie de color, ej text_on-danger' },
-                { value: 'background', description: 'fondos y superficies' },
-                { value: 'border',     description: 'bordes y divisores' },
-                { value: 'icon',       description: 'iconos' },
+                { value: 'gray',   description: 'grays and neutrals (American spelling: gray, not grey)' },
+                { value: 'blue',   description: 'blues' },
+                { value: 'green',  description: 'greens' },
+                { value: 'red',    description: 'reds' },
+                { value: 'orange', description: 'oranges and ambers' },
+                { value: 'pink',   description: 'pinks and magentas; family names are hue names only, never roles like brand or whitelabel' },
+                { value: 'white',  description: 'pure white, single value: skip the scale' },
+                { value: 'black',  description: 'pure black, single value, only if something uses it: skip the scale' },
               ],
             },
             {
-              slot: 'variant',
+              slot: 'scale',
               optional: true,
-              skipHint: 'sin variant equivale a default',
+              skipHint: 'skip only for white and black, which have no scale',
               options: [
-                { value: 'default', description: 'el neutro de la familia' },
-                { value: 'subtle',  description: 'versión apagada o secundaria' },
-                { value: 'label',   description: 'rótulos que nombran un campo o dato (form labels, settings, filtros); tono intermedio entre default y subtle' },
-                { value: 'accent',  description: 'color de marca, acción principal' },
-                { value: 'danger',  description: 'acción destructiva' },
-                { value: 'success', description: 'feedback positivo' },
-                { value: 'warning', description: 'feedback de precaución' },
-                { value: 'error',   description: 'feedback de error en datos' },
-                { value: 'info',    description: 'feedback informativo' },
-                { value: 'neutral', description: 'feedback sin carga, ej estado borrador' },
-                { value: 'inverse', description: 'sobre superficie oscura fija, en cualquier tema' },
-              ],
-            },
-            {
-              slot: 'state',
-              optional: true,
-              skipHint: 'sin state es el estado de reposo',
-              options: [
-                { value: 'hovered',  description: 'el puntero está encima' },
-                { value: 'pressed',  description: 'mientras se mantiene presionado' },
-                { value: 'focused',  description: 'tiene el foco del teclado' },
-                { value: 'disabled', description: 'no admite interacción' },
-                { value: 'selected', description: 'elegido dentro de un grupo' },
+                { value: '100',  description: 'the lightest of the family' },
+                { value: '200',  description: 'very light' },
+                { value: '300',  description: 'light' },
+                { value: '400',  description: 'light medium' },
+                { value: '500',  description: 'medium; usually the base tone of the family' },
+                { value: '600',  description: 'medium dark' },
+                { value: '700',  description: 'dark' },
+                { value: '800',  description: 'very dark' },
+                { value: '900',  description: 'almost the darkest' },
+                { value: '1000', description: 'the darkest of the family. Only the steps a family really uses get a value; no half steps (150, 650) by default' },
               ],
             },
           ],
@@ -308,51 +302,24 @@ const CONFIG = {
 
         {
           value: 'space',
-          description: 'distancias dentro y entre elementos',
+          description: 'steps of the spacing scale, 4px base, in hundredths',
           steps: [
-            {
-              slot: 'role',
-              optional: false,
-              options: [
-                { value: 'inset',  description: 'padding interno de un contenedor' },
-                { value: 'stack',  description: 'separación vertical entre apilados' },
-                { value: 'inline', description: 'separación horizontal en una fila; sigue el eje del texto' },
-              ],
-            },
             {
               slot: 'scale',
               optional: false,
               options: [
-                { value: '1-x', description: '1 vez la base de 4px' },
-                { value: '2-x', description: '2 veces la base de 4px' },
-                { value: '3-x', description: '3 veces la base de 4px' },
-                { value: '4-x', description: '4 veces la base de 4px' },
-              ],
-            },
-          ],
-        },
-
-        {
-          value: 'typography',
-          description: 'tokens compuestos de estilo de texto',
-          steps: [
-            {
-              slot: 'role',
-              optional: false,
-              options: [
-                { value: 'heading', description: 'títulos y encabezados' },
-                { value: 'body',    description: 'texto corrido' },
-                { value: 'label',   description: 'etiquetas de controles y campos' },
-                { value: 'caption', description: 'texto auxiliar pequeño' },
-              ],
-            },
-            {
-              slot: 'scale',
-              optional: false,
-              options: [
-                { value: 'small',  description: 'tamaño chico dentro del rol' },
-                { value: 'medium', description: 'tamaño base dentro del rol' },
-                { value: 'large',  description: 'tamaño grande dentro del rol' },
+                { value: '050',  description: '2px, half step' },
+                { value: '100',  description: '4px, the base' },
+                { value: '150',  description: '6px, half step' },
+                { value: '200',  description: '8px' },
+                { value: '300',  description: '12px' },
+                { value: '400',  description: '16px' },
+                { value: '500',  description: '20px' },
+                { value: '600',  description: '24px' },
+                { value: '800',  description: '32px' },
+                { value: '1000', description: '40px' },
+                { value: '1200', description: '48px' },
+                { value: '1600', description: '64px' },
               ],
             },
           ],
@@ -360,75 +327,131 @@ const CONFIG = {
 
         {
           value: 'size',
-          description: 'dimensiones de elementos (alto, ancho, iconos)',
+          description: 'element dimensions (heights, widths, icons), 4px base, in hundredths',
           steps: [
             {
               slot: 'scale',
               optional: false,
               options: [
-                { value: 'xs', description: 'extra chico' },
-                { value: 's',  description: 'chico' },
-                { value: 'm',  description: 'medio' },
-                { value: 'l',  description: 'grande' },
-                { value: 'xl', description: 'extra grande' },
+                { value: '400',  description: '16px' },
+                { value: '500',  description: '20px' },
+                { value: '600',  description: '24px' },
+                { value: '800',  description: '32px' },
+                { value: '900',  description: '36px' },
+                { value: '1000', description: '40px' },
+                { value: '1200', description: '48px' },
               ],
             },
           ],
         },
 
         {
-          value: 'shape',
-          description: 'forma de los elementos, hoy solo radios de esquina',
+          value: 'radius',
+          description: 'steps of the corner radius scale, 4px base, in hundredths',
           steps: [
-            {
-              slot: 'role',
-              optional: false,
-              options: [
-                { value: 'corner', description: 'radio de las esquinas' },
-              ],
-            },
             {
               slot: 'scale',
               optional: false,
               options: [
-                { value: 's',    description: 'radio chico' },
-                { value: 'm',    description: 'radio medio' },
-                { value: 'l',    description: 'radio grande' },
-                { value: 'pill', description: 'pill queda fuera de la escala numérica a propósito' },
+                { value: '0',    description: '0, square corner' },
+                { value: '100',  description: '4px' },
+                { value: '200',  description: '8px' },
+                { value: '300',  description: '12px' },
+                { value: '400',  description: '16px' },
+                { value: '600',  description: '24px' },
+                { value: 'full', description: 'maximum radius (pill). Outside the numeric scale on purpose: it is a value description, like 0' },
               ],
             },
           ],
         },
 
         {
-          value: 'elevation',
-          description: 'niveles de profundidad (sombras)',
+          value: 'font-family',
+          description: 'typefaces, named by value',
           steps: [
             {
               slot: 'scale',
               optional: false,
               options: [
-                { value: '0', description: 'al ras, sin sombra' },
-                { value: '1', description: 'apenas despegado de la superficie' },
-                { value: '2', description: 'flotante, ej menús y popovers' },
-                { value: '3', description: 'máxima profundidad, ej modales' },
+                { value: 'roboto', description: 'the brand typeface; "brand" is a semantic name, the primitive names the face' },
               ],
             },
           ],
         },
 
         {
-          value: 'breakpoint',
-          description: 'anchos de pantalla donde cambia el layout',
+          value: 'font-size',
+          description: 'font sizes, 4px base, in hundredths. Authored in px, emitted in rem',
           steps: [
             {
               slot: 'scale',
               optional: false,
               options: [
-                { value: 's',  description: 'pantallas chicas' },
-                { value: 'm',  description: 'pantallas medianas' },
-                { value: 'l',  description: 'pantallas grandes' },
-                { value: 'xl', description: 'pantallas extra grandes' },
+                { value: '300', description: '12px' },
+                { value: '350', description: '14px' },
+                { value: '400', description: '16px' },
+                { value: '550', description: '22px' },
+                { value: '600', description: '24px' },
+                { value: '700', description: '28px' },
+                { value: '800', description: '32px' },
+                { value: '900', description: '36px' },
+              ],
+            },
+          ],
+        },
+
+        {
+          value: 'font-line-height',
+          description: 'line heights, 4px base, in hundredths. Authored in px, emitted in rem',
+          steps: [
+            {
+              slot: 'scale',
+              optional: false,
+              options: [
+                { value: '400',  description: '16px' },
+                { value: '500',  description: '20px' },
+                { value: '600',  description: '24px' },
+                { value: '700',  description: '28px' },
+                { value: '800',  description: '32px' },
+                { value: '900',  description: '36px' },
+                { value: '1000', description: '40px' },
+                { value: '1100', description: '44px' },
+                { value: '1300', description: '52px' },
+                { value: '1600', description: '64px' },
+              ],
+            },
+          ],
+        },
+
+        {
+          value: 'font-weight',
+          description: 'font weights, named by value: not a continuous scale',
+          steps: [
+            {
+              slot: 'scale',
+              optional: false,
+              options: [
+                { value: 'regular',  description: '400' },
+                { value: 'medium',   description: '500' },
+                { value: 'semibold', description: '600' },
+                { value: 'bold',     description: '700, only if a style uses it' },
+              ],
+            },
+          ],
+        },
+
+        {
+          value: 'shadow',
+          description: 'steps of the shadow ladder (scale still to be defined by design)',
+          steps: [
+            {
+              slot: 'scale',
+              optional: false,
+              options: [
+                { value: '0', description: 'no shadow' },
+                { value: '1', description: 'minimal shadow' },
+                { value: '2', description: 'medium shadow' },
+                { value: '3', description: 'maximum shadow' },
               ],
             },
           ],
@@ -437,47 +460,59 @@ const CONFIG = {
     },
 
     /* -----------------------------------------------------------------
-     * PRIMITIVE: nombran un valor crudo de la paleta, sin decir para qué
-     * se usa. Estructura: category-family-scale. Family se salta en las
-     * categorías donde no aplica.
+     * SEMANTIC: names a usage decision and points to a primitive.
+     * Structure: category-role-variant-state (or category-role-scale).
      *
-     * PROPUESTA INICIAL para discutir: estas listas son un punto de
-     * partida, no la gramática cerrada del equipo.
+     * DRAFT for discussion: this vocabulary is a frontend starting point
+     * for the next iteration with design, not the team's closed grammar.
      * ----------------------------------------------------------------- */
     {
-      value: 'primitive',
-      description: 'nombra un valor crudo de la paleta, sin decir para qué se usa',
+      value: 'semantic',
+      description: 'names a usage decision and points to a primitive',
       categories: [
         {
           value: 'color',
-          description: 'tonos de la paleta base',
+          description: 'colors of text, backgrounds, borders and icons',
           steps: [
             {
-              slot: 'family',
+              slot: 'role',
               optional: false,
               options: [
-                { value: 'gray',   description: 'grises y neutros' },
-                { value: 'blue',   description: 'azules' },
-                { value: 'green',  description: 'verdes' },
-                { value: 'red',    description: 'rojos' },
-                { value: 'amber',  description: 'ámbar y naranjas' },
-                { value: 'purple', description: 'violetas' },
+                { value: 'text',       description: 'paints letters' },
+                { value: 'text_on',    description: 'letters over a colored surface, e.g. text_on-danger' },
+                { value: 'background', description: 'backgrounds and surfaces' },
+                { value: 'border',     description: 'borders and dividers' },
+                { value: 'icon',       description: 'icons' },
               ],
             },
             {
-              slot: 'scale',
-              optional: false,
+              slot: 'variant',
+              optional: true,
+              skipHint: 'no variant means default',
               options: [
-                { value: '50',  description: 'el más claro de la familia' },
-                { value: '100', description: 'muy claro' },
-                { value: '200', description: 'claro' },
-                { value: '300', description: 'claro medio' },
-                { value: '400', description: 'medio claro' },
-                { value: '500', description: 'el tono base de la familia' },
-                { value: '600', description: 'medio oscuro' },
-                { value: '700', description: 'oscuro' },
-                { value: '800', description: 'muy oscuro' },
-                { value: '900', description: 'el más oscuro de la familia' },
+                { value: 'default', description: 'the neutral of the family' },
+                { value: 'subtle',  description: 'muted or secondary version' },
+                { value: 'label',   description: 'labels that name a field or a value (form labels, settings, filters); a tone between default and subtle' },
+                { value: 'brand',   description: 'the brand this platform wears: the tenant color on the white label theme, the SonoSuite pink on the SonoSuite theme. The theme changes the value, never the name' },
+                { value: 'danger',  description: 'destructive action' },
+                { value: 'success', description: 'positive feedback' },
+                { value: 'warning', description: 'caution feedback' },
+                { value: 'error',   description: 'data error feedback' },
+                { value: 'info',    description: 'informative feedback' },
+                { value: 'neutral', description: 'feedback with no charge, e.g. draft state' },
+                { value: 'inverse', description: 'over a fixed dark surface, in any theme' },
+              ],
+            },
+            {
+              slot: 'state',
+              optional: true,
+              skipHint: 'no state means rest',
+              options: [
+                { value: 'hovered',  description: 'the pointer is over it' },
+                { value: 'pressed',  description: 'while it is held down' },
+                { value: 'focused',  description: 'has keyboard focus' },
+                { value: 'disabled', description: 'does not accept interaction' },
+                { value: 'selected', description: 'chosen within a group' },
               ],
             },
           ],
@@ -485,20 +520,25 @@ const CONFIG = {
 
         {
           value: 'space',
-          description: 'pasos de la escala de espaciado',
+          description: 'distances inside and between elements',
           steps: [
+            {
+              slot: 'role',
+              optional: false,
+              options: [
+                { value: 'inset',  description: 'inner padding of a container' },
+                { value: 'stack',  description: 'vertical gap between stacked elements' },
+                { value: 'inline', description: 'horizontal gap in a row; follows the text axis' },
+              ],
+            },
             {
               slot: 'scale',
               optional: false,
               options: [
-                { value: '1',  description: '4px, 1 vez la base' },
-                { value: '2',  description: '8px, 2 veces la base' },
-                { value: '3',  description: '12px, 3 veces la base' },
-                { value: '4',  description: '16px, 4 veces la base' },
-                { value: '6',  description: '24px, 6 veces la base' },
-                { value: '8',  description: '32px, 8 veces la base' },
-                { value: '12', description: '48px, 12 veces la base' },
-                { value: '16', description: '64px, 16 veces la base' },
+                { value: 'xs', description: 'points to space-100 (4px)' },
+                { value: 's',  description: 'points to space-200 (8px)' },
+                { value: 'm',  description: 'points to space-400 (16px)' },
+                { value: 'l',  description: 'points to space-600 (24px)' },
               ],
             },
           ],
@@ -506,28 +546,25 @@ const CONFIG = {
 
         {
           value: 'typography',
-          description: 'valores crudos de tipografía',
+          description: 'composite text styles (family + size + weight + line height), named by use',
           steps: [
             {
-              slot: 'family',
+              slot: 'role',
               optional: false,
               options: [
-                { value: 'size',        description: 'tamaño de fuente' },
-                { value: 'weight',      description: 'peso de fuente' },
-                { value: 'line-height', description: 'interlineado' },
+                { value: 'heading', description: 'titles and headings' },
+                { value: 'body',    description: 'running text' },
+                { value: 'label',   description: 'labels of controls and fields' },
+                { value: 'caption', description: 'small auxiliary text' },
               ],
             },
             {
               slot: 'scale',
               optional: false,
               options: [
-                { value: '1', description: 'posición 1 de la escala, la menor' },
-                { value: '2', description: 'posición 2 de la escala' },
-                { value: '3', description: 'posición 3 de la escala' },
-                { value: '4', description: 'posición 4 de la escala' },
-                { value: '5', description: 'posición 5 de la escala' },
-                { value: '6', description: 'posición 6 de la escala' },
-                { value: '7', description: 'posición 7 de la escala, la mayor' },
+                { value: 's', description: 'small size within the role' },
+                { value: 'm', description: 'base size within the role' },
+                { value: 'l', description: 'large size within the role' },
               ],
             },
           ],
@@ -535,53 +572,75 @@ const CONFIG = {
 
         {
           value: 'size',
-          description: 'pasos de la escala de dimensiones',
+          description: 'element dimensions by use (icons, control heights)',
           steps: [
             {
               slot: 'scale',
               optional: false,
               options: [
-                { value: '1', description: 'posición 1 de la escala, la menor' },
-                { value: '2', description: 'posición 2 de la escala' },
-                { value: '3', description: 'posición 3 de la escala' },
-                { value: '4', description: 'posición 4 de la escala' },
-                { value: '5', description: 'posición 5 de la escala' },
-                { value: '6', description: 'posición 6 de la escala, la mayor' },
+                { value: 'xs', description: 'extra small' },
+                { value: 's',  description: 'small' },
+                { value: 'm',  description: 'medium' },
+                { value: 'l',  description: 'large' },
+                { value: 'xl', description: 'extra large' },
               ],
             },
           ],
         },
 
         {
-          value: 'radius',
-          description: 'pasos de la escala de radios',
+          value: 'shape',
+          description: 'shape of elements; today only corner radius',
           steps: [
+            {
+              slot: 'role',
+              optional: false,
+              options: [
+                { value: 'corner', description: 'corner radius' },
+              ],
+            },
             {
               slot: 'scale',
               optional: false,
               options: [
-                { value: '0',    description: 'sin radio, esquina recta' },
-                { value: '1',    description: 'radio menor' },
-                { value: '2',    description: 'radio medio' },
-                { value: '3',    description: 'radio mayor' },
-                { value: 'full', description: 'radio completo, fuera de la escala numérica' },
+                { value: 's',    description: 'small radius, e.g. chips, inputs, badges' },
+                { value: 'm',    description: 'medium radius, e.g. buttons, cards' },
+                { value: 'l',    description: 'large radius, e.g. modals, panels' },
+                { value: 'pill', description: 'capsule; points to radius-full. A separate case, not one size more (never xxl)' },
               ],
             },
           ],
         },
 
         {
-          value: 'shadow',
-          description: 'pasos de la escala de sombras',
+          value: 'elevation',
+          description: 'depth levels, named by use (PROPOSAL: design is still defining the shadow scale)',
           steps: [
             {
               slot: 'scale',
               optional: false,
               options: [
-                { value: '0', description: 'sin sombra' },
-                { value: '1', description: 'sombra mínima' },
-                { value: '2', description: 'sombra media' },
-                { value: '3', description: 'sombra máxima' },
+                { value: 'flat',    description: 'flush, no shadow; points to shadow-0' },
+                { value: 'raised',  description: 'resting on the surface, e.g. cards; points to shadow-1' },
+                { value: 'overlay', description: 'floating, e.g. menus and popovers; points to shadow-2' },
+                { value: 'modal',   description: 'maximum depth, blocks what is behind; points to shadow-3' },
+              ],
+            },
+          ],
+        },
+
+        {
+          value: 'breakpoint',
+          description: 'screen widths where the layout changes',
+          steps: [
+            {
+              slot: 'scale',
+              optional: false,
+              options: [
+                { value: 's',  description: 'small screens' },
+                { value: 'm',  description: 'medium screens' },
+                { value: 'l',  description: 'large screens' },
+                { value: 'xl', description: 'extra large screens' },
               ],
             },
           ],
@@ -595,19 +654,19 @@ const CONFIG = {
 <div class="page">
   <header class="header">
     <h1>Token Namer</h1>
-    <p>Armá el nombre de un token primitivo o semántico eligiendo un valor por slot.</p>
+    <p>Build the name of a primitive or semantic token, choosing one value per slot.</p>
     <div class="intro">
-      <p><strong>Cómo leer esta herramienta.</strong> Un token tiene dos capas. El <strong>primitivo</strong> nombra un valor del catálogo sin decir para qué se usa (<code>color-blue-500</code>). El <strong>semántico</strong> nombra una decisión de uso y apunta a un primitivo (<code>color-background-danger-hovered</code>). El nombre se arma con slots en orden fijo; se usan solo los que hacen falta.</p>
-      <p>Tres reglas que no están en ningún slot: la marca y el modo claro/oscuro cambian el valor, nunca el nombre. Que un nombre sea válido no significa que el token exista: se crea cuando algo lo usa. Y las opciones cargadas acá son un borrador de frontend para discutir, no la gramática cerrada del equipo.</p>
+      <p><strong>How to read this tool.</strong> A token has two layers. The <strong>primitive</strong> names a value of the catalog without saying what it is for (<code>color-blue-500</code>). The <strong>semantic</strong> names a usage decision and points to a primitive (<code>color-background-danger-hovered</code>). The name is built with slots in a fixed order; only the ones needed are used.</p>
+      <p>Three rules that live in no slot: the brand and the light/dark mode change the value, never the name. A valid name does not mean the token exists: it is created when something uses it. And the options loaded here are a frontend draft for discussion, not the team's closed grammar. Primitive scales follow what was agreed with design in September 2026; the semantic vocabulary is the next iteration.</p>
     </div>
   </header>
 
-  <section class="preview" aria-live="polite" aria-label="Nombre en construcción">
+  <section class="preview" aria-live="polite" aria-label="Name in progress">
     <div class="preview-row">
       <div class="preview-name" id="preview-name"></div>
       <div class="actions">
-        <button class="btn small" id="copy-preview" type="button" hidden>Copiar</button>
-        <button class="btn small quiet" id="restart-top" type="button">Empezar de nuevo</button>
+        <button class="btn small" id="copy-preview" type="button" hidden>Copy</button>
+        <button class="btn small quiet" id="restart-top" type="button">Start over</button>
       </div>
     </div>
     <div class="legend" id="legend"></div>
@@ -615,22 +674,22 @@ const CONFIG = {
 
   <main class="wizard">
     <div class="field">
-      <label for="decision">Qué decisión estás nombrando?</label>
-      <p class="hint">Opcional. Ejemplo: el fondo de los botones destructivos. La app existe para nombrar decisiones, no para generar nombres.</p>
-      <input type="text" id="decision" placeholder="Describí la decisión en una línea" autocomplete="off">
+      <label for="decision">What decision are you naming?</label>
+      <p class="hint">Optional. Example: the background of destructive buttons. This app exists to name decisions, not to generate names.</p>
+      <input type="text" id="decision" placeholder="Describe the decision in one line" autocomplete="off">
     </div>
 
-    <nav class="crumbs" id="crumbs" aria-label="Pasos"></nav>
+    <nav class="crumbs" id="crumbs" aria-label="Steps"></nav>
 
     <section class="step" id="step"></section>
   </main>
 
   <section class="list">
     <div class="list-head">
-      <h2>Lista acumulada <span class="count" id="list-count"></span></h2>
+      <h2>Collected list <span class="count" id="list-count"></span></h2>
       <div class="actions" id="list-actions">
-        <button class="btn small" id="export-md" type="button">Exportar Markdown</button>
-        <button class="btn small" id="export-json" type="button">Exportar JSON</button>
+        <button class="btn small" id="export-md" type="button">Export Markdown</button>
+        <button class="btn small" id="export-json" type="button">Export JSON</button>
         <span id="clear-zone"></span>
       </div>
     </div>
@@ -638,30 +697,30 @@ const CONFIG = {
       <table id="list-table">
         <thead>
           <tr>
-            <th scope="col">Nombre</th>
+            <th scope="col">Name</th>
             <th scope="col">Tier</th>
-            <th scope="col">Decisión que nombra</th>
-            <th scope="col">Fecha</th>
-            <th scope="col">Acciones</th>
+            <th scope="col">Decision it names</th>
+            <th scope="col">Date</th>
+            <th scope="col">Actions</th>
           </tr>
         </thead>
         <tbody id="list-body"></tbody>
       </table>
-      <div class="empty-list" id="list-empty">Todavía no hay tokens en la lista.</div>
+      <div class="empty-list" id="list-empty">No tokens in the list yet.</div>
     </div>
   </section>
 </div>
 
-<footer class="footer">Las listas de este armador son una propuesta de trabajo en revisión. Si un token real no se puede armar acá, anotalo: o falta una opción o el token está mal.</footer>
+<footer class="footer">The lists in this builder are a working proposal under review. If a real token cannot be built here, write it down: either an option is missing or the token is wrong.</footer>
 <div class="toast" id="toast" role="status"></div>
 
 <script>
 (function () {
   'use strict';
 
-  /* ---------------- Estado del asistente ---------------- */
-  // choices: un elemento por paso completado, { slot, value } (value null = saltado)
-  // tier no forma parte del nombre; solo elige qué categorías se ofrecen
+  /* ---------------- Wizard state ---------------- */
+  // choices: one entry per completed step, { slot, value } (value null = skipped)
+  // tier is not part of the name; it only picks which categories are offered
   const wizard = { tier: null, category: null, choices: [] };
 
   const STORAGE_KEY = 'token-namer.list.v1';
@@ -709,7 +768,7 @@ const CONFIG = {
     return !!wizard.category && wizard.choices.length === steps().length;
   }
 
-  // Ensamblado: category + valores elegidos (los saltados no aparecen), unidos con guion medio.
+  // Assembly: category + chosen values (skipped ones do not appear), joined with hyphens.
   function assembledSegments() {
     const segs = [];
     if (wizard.category) segs.push({ slot: 'category', value: wizard.category });
@@ -720,7 +779,7 @@ const CONFIG = {
     return assembledSegments().map((s) => s.value).join('-');
   }
 
-  /* ---------------- Persistencia ---------------- */
+  /* ---------------- Persistence ---------------- */
   function loadList() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -734,11 +793,11 @@ const CONFIG = {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
     } catch (e) {
-      /* sin localStorage la lista vive solo en memoria */
+      /* without localStorage the list lives only in memory */
     }
   }
 
-  /* ---------------- Portapapeles ---------------- */
+  /* ---------------- Clipboard ---------------- */
   async function copyText(text, label) {
     let ok = false;
     try {
@@ -746,7 +805,7 @@ const CONFIG = {
         await navigator.clipboard.writeText(text);
         ok = true;
       }
-    } catch (e) { /* cae al fallback */ }
+    } catch (e) { /* falls back below */ }
     if (!ok) {
       const ta = el('textarea', { style: 'position:fixed;opacity:0;top:0;left:0' });
       ta.value = text;
@@ -755,7 +814,7 @@ const CONFIG = {
       try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
       ta.remove();
     }
-    toast(ok ? (label || 'Copiado al portapapeles') : 'No se pudo copiar');
+    toast(ok ? (label || 'Copied to clipboard') : 'Could not copy');
   }
 
   let toastTimer = null;
@@ -767,20 +826,20 @@ const CONFIG = {
     toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
   }
 
-  /* ---------------- Render: preview y leyenda ---------------- */
+  /* ---------------- Render: preview and legend ---------------- */
   function renderPreview() {
     const box = $('#preview-name');
     box.replaceChildren();
     const segs = assembledSegments();
 
     if (!segs.length) {
-      box.append(el('span', { class: 'empty', text: wizard.tier ? 'Elegí una categoría para seguir.' : 'Elegí un tier para empezar.' }));
+      box.append(el('span', { class: 'empty', text: wizard.tier ? 'Pick a category to continue.' : 'Pick a tier to start.' }));
     } else {
       segs.forEach((s, i) => {
         if (i > 0) box.append(el('span', { class: 'sep', text: '-' }));
         box.append(el('span', { class: 'seg', style: slotStyle(s.slot), text: s.value, title: s.slot }));
       });
-      // Slot pendiente, como pista de lo que viene.
+      // Pending slot, as a hint of what comes next.
       const step = currentStep();
       if (step) {
         box.append(el('span', { class: 'sep', text: '-' }));
@@ -798,7 +857,7 @@ const CONFIG = {
     }
   }
 
-  /* ---------------- Render: migas de pan ---------------- */
+  /* ---------------- Render: breadcrumbs ---------------- */
   function renderCrumbs() {
     const nav = $('#crumbs');
     nav.replaceChildren();
@@ -811,10 +870,10 @@ const CONFIG = {
     crumbs.forEach((c, i) => {
       if (i > 0) nav.append(el('span', { class: 'crumb-arrow', text: '›' }));
       const val = c.value == null
-        ? el('span', { class: 'val skipped', text: 'saltado' })
+        ? el('span', { class: 'val skipped', text: 'skipped' })
         : el('span', { class: 'val', text: c.value });
       nav.append(el('button', {
-        type: 'button', class: 'crumb done', title: 'Volver a este paso',
+        type: 'button', class: 'crumb done', title: 'Go back to this step',
         onclick: () => goBackTo(c.index),
       }, [el('span', { class: 'slot', text: c.slot }), val]));
     });
@@ -827,13 +886,13 @@ const CONFIG = {
     }
   }
 
-  /* ---------------- Render: paso actual ---------------- */
+  /* ---------------- Render: current step ---------------- */
   function renderStep() {
     const box = $('#step');
     box.replaceChildren();
 
     if (!wizard.tier) {
-      box.append(stepHeader('tier', false, 'El tier no forma parte del nombre; solo decide qué pasos siguen.'));
+      box.append(stepHeader('tier', false, 'The tier is not part of the name; it only decides which steps follow.'));
       box.append(cardGrid(CONFIG.tiers.map((t) => ({ value: t.value, description: t.description })), (v) => {
         wizard.tier = v;
         wizard.category = null;
@@ -844,7 +903,7 @@ const CONFIG = {
     }
 
     if (!wizard.category) {
-      box.append(stepHeader('category', false, 'Elegí de qué familia es el token.'));
+      box.append(stepHeader('category', false, 'Pick what kind of token this is.'));
       box.append(cardGrid(tierConfig().categories.map((c) => ({ value: c.value, description: c.description })), (v) => {
         wizard.category = v;
         wizard.choices = [];
@@ -863,7 +922,7 @@ const CONFIG = {
       if (step.optional) {
         const hint = step.skipHint ? ' (' + step.skipHint + ')' : '';
         box.append(el('div', { class: 'actions' }, [
-          el('button', { type: 'button', class: 'btn', text: 'Saltar este slot' + hint, onclick: () => {
+          el('button', { type: 'button', class: 'btn', text: 'Skip this slot' + hint, onclick: () => {
             wizard.choices.push({ slot: step.slot, value: null });
             render();
           } }),
@@ -872,22 +931,22 @@ const CONFIG = {
       return;
     }
 
-    // Completo
+    // Complete
     const name = assembledName();
     box.append(el('div', { class: 'done-box' }, [
-      el('p', { text: 'Nombre completo. Podés copiarlo o sumarlo a la lista de abajo.' }),
+      el('p', { text: 'Name complete. Copy it or add it to the list below.' }),
       el('div', { class: 'preview-name' }, [el('code', { text: name })]),
       el('div', { class: 'actions' }, [
-        el('button', { type: 'button', class: 'btn primary', text: 'Agregar a la lista', onclick: addToList }),
-        el('button', { type: 'button', class: 'btn', text: 'Copiar nombre', onclick: () => copyText(name) }),
-        el('button', { type: 'button', class: 'btn quiet', text: 'Empezar de nuevo', onclick: restart }),
+        el('button', { type: 'button', class: 'btn primary', text: 'Add to list', onclick: addToList }),
+        el('button', { type: 'button', class: 'btn', text: 'Copy name', onclick: () => copyText(name) }),
+        el('button', { type: 'button', class: 'btn quiet', text: 'Start over', onclick: restart }),
       ]),
     ]));
   }
 
   function stepHeader(slot, optional, subtitle) {
-    const h = el('h2', {}, ['Elegí ', el('code', { text: slot })]);
-    const tag = el('span', { class: 'tag', text: optional ? 'opcional' : 'obligatorio' });
+    const h = el('h2', {}, ['Pick ', el('code', { text: slot })]);
+    const tag = el('span', { class: 'tag', text: optional ? 'optional' : 'required' });
     const head = el('div', { class: 'step-head' }, [h, tag]);
     if (!subtitle) return head;
     return el('div', {}, [head, el('p', { class: 'hint', text: subtitle, style: 'margin:4px 0 0;color:var(--muted);font-size:13px' })]);
@@ -902,10 +961,10 @@ const CONFIG = {
     ));
   }
 
-  /* ---------------- Acciones del asistente ---------------- */
+  /* ---------------- Wizard actions ---------------- */
   function goBackTo(index) {
-    // index -2 = volver a elegir tier; -1 = volver a elegir categoría;
-    // n = volver al paso n (se descarta lo posterior)
+    // index -2 = pick the tier again; -1 = pick the category again;
+    // n = go back to step n (later steps are discarded)
     if (index <= -2) {
       wizard.tier = null;
       wizard.category = null;
@@ -938,15 +997,15 @@ const CONFIG = {
     });
     saveList();
     renderList();
-    toast('Agregado a la lista');
+    toast('Added to the list');
     restart();
   }
 
-  /* ---------------- Lista acumulada ---------------- */
+  /* ---------------- Collected list ---------------- */
   function formatDate(iso) {
     const d = new Date(iso);
     if (isNaN(d)) return '';
-    return d.toLocaleDateString('es', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
   }
 
   function renderList() {
@@ -965,11 +1024,11 @@ const CONFIG = {
         el('td', { class: 'tier', text: item.tier || '' }),
         el('td', { class: 'decision' }, item.decision
           ? item.decision
-          : el('span', { class: 'none', text: 'sin decisión anotada' })),
+          : el('span', { class: 'none', text: 'no decision noted' })),
         el('td', { class: 'date', text: formatDate(item.createdAt) }),
         el('td', { class: 'row-actions' }, [
-          el('button', { type: 'button', class: 'btn small', text: 'Copiar', onclick: () => copyText(item.name) }),
-          el('button', { type: 'button', class: 'btn small quiet', text: 'Borrar', onclick: () => {
+          el('button', { type: 'button', class: 'btn small', text: 'Copy', onclick: () => copyText(item.name) }),
+          el('button', { type: 'button', class: 'btn small quiet', text: 'Delete', onclick: () => {
             list.splice(i, 1);
             saveList();
             renderList();
@@ -984,18 +1043,18 @@ const CONFIG = {
     zone.replaceChildren();
     if (!list.length) return;
     if (!confirming) {
-      zone.append(el('button', { type: 'button', class: 'btn small quiet', text: 'Vaciar lista', onclick: () => renderClearZone(true) }));
+      zone.append(el('button', { type: 'button', class: 'btn small quiet', text: 'Clear list', onclick: () => renderClearZone(true) }));
       return;
     }
     zone.append(el('span', { class: 'confirm' }, [
-      'Se borran ' + list.length + ' tokens.',
-      el('button', { type: 'button', class: 'btn small danger', text: 'Vaciar', onclick: () => {
+      'This deletes ' + list.length + ' tokens.',
+      el('button', { type: 'button', class: 'btn small danger', text: 'Clear', onclick: () => {
         list = [];
         saveList();
         renderList();
-        toast('Lista vaciada');
+        toast('List cleared');
       } }),
-      el('button', { type: 'button', class: 'btn small quiet', text: 'Cancelar', onclick: () => renderClearZone(false) }),
+      el('button', { type: 'button', class: 'btn small quiet', text: 'Cancel', onclick: () => renderClearZone(false) }),
     ]));
   }
 
@@ -1004,18 +1063,18 @@ const CONFIG = {
     return String(s || '').replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
   }
   function exportMarkdown() {
-    const lines = ['| nombre | tier | decisión |', '| --- | --- | --- |'];
+    const lines = ['| name | tier | decision |', '| --- | --- | --- |'];
     for (const item of list) {
       lines.push('| `' + item.name + '` | ' + escapeMdCell(item.tier) + ' | ' + escapeMdCell(item.decision) + ' |');
     }
-    copyText(lines.join('\n'), 'Markdown copiado al portapapeles');
+    copyText(lines.join('\n'), 'Markdown copied to clipboard');
   }
   function exportJson() {
     const data = list.map((i) => ({ name: i.name, tier: i.tier || null, decision: i.decision, createdAt: i.createdAt }));
-    copyText(JSON.stringify(data, null, 2), 'JSON copiado al portapapeles');
+    copyText(JSON.stringify(data, null, 2), 'JSON copied to clipboard');
   }
 
-  /* ---------------- Arranque ---------------- */
+  /* ---------------- Boot ---------------- */
   function render() {
     renderPreview();
     renderCrumbs();
