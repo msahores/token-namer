@@ -244,8 +244,8 @@
  * Valid example: color + background + (skip variant) + hovered
  *   => color-background-hovered
  *
- * Numeric scales follow one convention: hundredths. For dimensions the
- * base is 4px (100 = 4px, 050 = 2px, 150 = 6px, 400 = 16px). For color the
+ * Numeric scales follow one convention: hundredths. For dimensions (one
+ * primitive category shared by spacing and sizes) the base is 4px (100 = 4px, 050 = 2px, 150 = 6px, 400 = 16px). For color the
  * steps go from 100 (lightest) to 1000 (darkest), no half steps by default.
  * ===================================================================== */
 const CONFIG = {
@@ -312,8 +312,8 @@ const CONFIG = {
         },
 
         {
-          value: 'space',
-          description: 'steps of the spacing scale, 4px base, in hundredths',
+          value: 'dimension',
+          description: 'raw lengths, 4px base, in hundredths. One catalog for spacing and sizes: what a length is used for is a semantic decision',
           steps: [
             {
               slot: 'scale',
@@ -328,29 +328,10 @@ const CONFIG = {
                 { value: '500',  description: '20px' },
                 { value: '600',  description: '24px' },
                 { value: '800',  description: '32px' },
-                { value: '1000', description: '40px' },
-                { value: '1200', description: '48px' },
-                { value: '1600', description: '64px' },
-              ],
-            },
-          ],
-        },
-
-        {
-          value: 'size',
-          description: 'element dimensions (heights, widths, icons), 4px base, in hundredths',
-          steps: [
-            {
-              slot: 'scale',
-              optional: false,
-              options: [
-                { value: '400',  description: '16px' },
-                { value: '500',  description: '20px' },
-                { value: '600',  description: '24px' },
-                { value: '800',  description: '32px' },
                 { value: '900',  description: '36px' },
                 { value: '1000', description: '40px' },
                 { value: '1200', description: '48px' },
+                { value: '1600', description: '64px' },
               ],
             },
           ],
@@ -528,10 +509,10 @@ const CONFIG = {
               slot: 'scale',
               optional: false,
               options: [
-                { value: 'xs', description: 'points to space-100 (4px)' },
-                { value: 's',  description: 'points to space-200 (8px)' },
-                { value: 'm',  description: 'points to space-400 (16px)' },
-                { value: 'l',  description: 'points to space-600 (24px)' },
+                { value: 'xs', description: 'points to dimension-100 (4px)' },
+                { value: 's',  description: 'points to dimension-200 (8px)' },
+                { value: 'm',  description: 'points to dimension-400 (16px)' },
+                { value: 'l',  description: 'points to dimension-600 (24px)' },
               ],
             },
           ],
