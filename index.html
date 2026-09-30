@@ -358,6 +358,29 @@ const CONFIG = {
         },
 
         {
+          value: 'border',
+          description: 'raw border properties; today only the width',
+          steps: [
+            {
+              slot: 'family',
+              optional: false,
+              options: [
+                { value: 'width', description: 'border width, 4px base, in hundredths. Style (solid, dashed) is a keyword, not a scale, and lives in the semantic layer' },
+              ],
+            },
+            {
+              slot: 'scale',
+              optional: false,
+              options: [
+                { value: '025', description: '1px, the most common border' },
+                { value: '050', description: '2px' },
+                { value: '100', description: '4px' },
+              ],
+            },
+          ],
+        },
+
+        {
           value: 'font',
           description: 'raw typography values: typeface, size, line height, weight',
           steps: [
