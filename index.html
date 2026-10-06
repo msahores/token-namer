@@ -469,7 +469,7 @@ const CONFIG = {
       categories: [
         {
           value: 'color',
-          description: 'colors of text, backgrounds, borders and icons',
+          description: 'colors of text, backgrounds, fills, borders and icons',
           steps: [
             {
               slot: 'role',
@@ -477,7 +477,8 @@ const CONFIG = {
               options: [
                 { value: 'text',       description: 'paints letters' },
                 { value: 'text_on',    description: 'letters over a colored surface, e.g. text_on-danger' },
-                { value: 'background', description: 'backgrounds and surfaces' },
+                { value: 'background', description: 'what sits behind: the surface of a page, a card or a modal' },
+                { value: 'fill',       description: 'the fill of an element placed on top of a surface, e.g. a button. Not the same as background: changing modal backgrounds should not move button fills' },
                 { value: 'border',     description: 'borders and dividers' },
                 { value: 'icon',       description: 'icons' },
               ],
@@ -490,7 +491,9 @@ const CONFIG = {
                 { value: 'default', description: 'the neutral of the family' },
                 { value: 'subtle',  description: 'muted or secondary version' },
                 { value: 'label',   description: 'labels that name a field or a value (form labels, settings, filters); a tone between default and subtle' },
-                { value: 'brand',   description: 'the brand accent; each theme assigns its own value, the name stays' },
+                { value: 'primary',   description: 'the main brand color and main action; each theme assigns its own value, the name stays' },
+                { value: 'secondary', description: 'the second brand color, for secondary actions' },
+                { value: 'tertiary',  description: 'the neutral, gray-based level, e.g. low emphasis controls and links' },
                 { value: 'danger',  description: 'destructive action' },
                 { value: 'success', description: 'positive feedback' },
                 { value: 'warning', description: 'caution feedback' },
